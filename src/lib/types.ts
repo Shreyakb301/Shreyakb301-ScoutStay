@@ -44,3 +44,48 @@ export interface ComparisonRequest {
 
 export const MIN_STAYS = 2;
 export const MAX_STAYS = 5;
+
+/* ------------------------------------------------------------------ */
+/* Nearby places (OpenStreetMap Overpass)                              */
+/* ------------------------------------------------------------------ */
+
+export type NearbyCategory =
+  | "restaurant"
+  | "cafe"
+  | "grocery"
+  | "pharmacy"
+  | "healthcare"
+  | "transit"
+  | "nightlife"
+  | "park"
+  | "attraction";
+
+export interface NearbyPlace {
+  /** OSM element identity, e.g. "node/123456". */
+  id: string;
+  name?: string;
+  category: NearbyCategory;
+  latitude: number;
+  longitude: number;
+}
+
+export type NearbyPlaceCounts = Record<NearbyCategory, number>;
+
+/** All scores 0–100. Higher is better except quietRiskScore (higher = noisier area). */
+export interface LocationScoreBreakdown {
+  foodAccessScore: number;
+  groceryAccessScore: number;
+  transitScore: number;
+  healthcareAccessScore: number;
+  nightlifeDensityScore: number;
+  quietRiskScore: number;
+  convenienceScore: number;
+}
+
+/** Real-world location signals for one stay, derived from Overpass data. */
+export interface LocationIntelligence {
+  radiusMeters: number;
+  counts: NearbyPlaceCounts;
+  scores: LocationScoreBreakdown;
+  places: NearbyPlace[];
+}

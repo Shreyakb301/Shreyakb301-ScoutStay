@@ -1,5 +1,6 @@
 import type {
   ComparisonRequest,
+  LocationIntelligence,
   Platform,
   StayListing,
   TravelerTypeId,
@@ -30,6 +31,8 @@ export interface ScoredStay {
   verdict: Verdict;
   pros: string[];
   cons: string[];
+  /** Real OpenStreetMap signals, when available for this stay's location. */
+  nearby?: LocationIntelligence;
 }
 
 export interface ComparisonResult {
@@ -247,7 +250,16 @@ function scoreCategory(stay: StayListing, category: CategoryId, text: string): n
   return clamp(baseScore(stay, category) + keywordAdjustment(text, category) + platformDelta);
 }
 
-export function scoreComparison(request: ComparisonRequest): ComparisonResult {
+/**
+ * Scores the comparison. When `nearbyByStayId` carries real OpenStreetMap
+ * signals for a stay, those replace the mock estimates for food access,
+ * transit, and quietness; everything else (and stays without nearby data)
+ * falls back to the deterministic mock scoring.
+ */
+export function scoreComparison(
+  request: ComparisonRequest,
+  nearbyByStayId?: Record<string, LocationIntelligence>
+): ComparisonResult {
   const { travelerType, stays } = request;
 
   const prices = stays.map((stay) => Number(stay.pricePerNight) || 0);
@@ -271,6 +283,16 @@ export function scoreComparison(request: ComparisonRequest): ComparisonResult {
       valueScore: valueScoreFor(stay, averagePrice),
       travelerFitScore: 0, // filled in below
     };
+
+    const nearby = nearbyByStayId?.[stay.id];
+    if (nearby) {
+      scores.foodAccessScore = clamp(nearby.scores.foodAccessScore);
+      scores.transitScore = clamp(nearby.scores.transitScore);
+      // Our noise score is "quietness" (higher = quieter); Overpass gives
+      // us risk (higher = noisier). Invert it, damped so a lively city
+      // center reads as a real trade-off rather than an automatic fail.
+      scores.noiseRiskScore = clamp(100 - 0.85 * nearby.scores.quietRiskScore);
+    }
 
     const weights = TRAVELER_WEIGHTS[travelerType];
     const weightedFit = (Object.entries(weights) as [CategoryId, number][]).reduce(
@@ -309,6 +331,7 @@ export function scoreComparison(request: ComparisonRequest): ComparisonResult {
       verdict: getVerdict(overallScore),
       pros,
       cons,
+      nearby,
     } satisfies ScoredStay;
   });
 

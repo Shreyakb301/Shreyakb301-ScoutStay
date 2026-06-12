@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/card";
 import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
 import { PLATFORM_OPTIONS } from "@/lib/mock-data";
+import type {
+  Airport,
+  AirportIntelligence,
+} from "@/lib/airport-intelligence";
 import type { LngLat } from "@/lib/geocode";
 import type { ScoredStay } from "@/lib/scoring";
 
@@ -57,6 +61,27 @@ function markerIcon(rank: number, color: string): L.DivIcon {
   });
 }
 
+interface AirportMarkerData {
+  airport: Airport;
+  /** Stays whose nearest airport this is, with their distances. */
+  stays: { name: string; distanceKm: number; driveMinutes: number }[];
+}
+
+/** Square slate marker with a plane glyph — visually distinct from the round, numbered stay markers. */
+function airportIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html:
+      `<div style="display:flex;align-items:center;justify-content:center;` +
+      `width:30px;height:30px;border-radius:8px;background:#0f172a;` +
+      `color:white;font-size:15px;border:2px solid white;` +
+      `box-shadow:0 2px 6px rgba(0,0,0,0.35)">✈</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -17],
+  });
+}
+
 /** Fits the viewport to the markers whenever the set of locations changes. */
 function FitBounds({ positions }: { positions: [number, number][] }) {
   const map = useMap();
@@ -73,7 +98,14 @@ function FitBounds({ positions }: { positions: [number, number][] }) {
   return null;
 }
 
-export function StayMap({ scoredStays }: { scoredStays: ScoredStay[] }) {
+export function StayMap({
+  scoredStays,
+  airports,
+}: {
+  scoredStays: ScoredStay[];
+  /** Nearest-airport data keyed by stay id, when available. */
+  airports?: Record<string, AirportIntelligence | null>;
+}) {
   const stays = useMemo(
     () => scoredStays.map((entry) => entry.stay),
     [scoredStays]
@@ -92,10 +124,40 @@ export function StayMap({ scoredStays }: { scoredStays: ScoredStay[] }) {
     [scoredStays, locations]
   );
 
+  // Dedupe airports shared by several stays into one marker each.
+  const airportMarkers = useMemo<AirportMarkerData[]>(() => {
+    if (!airports) return [];
+    const byId = new Map<string, AirportMarkerData>();
+    for (const entry of scoredStays) {
+      const info = airports[entry.stay.id];
+      if (!info) continue;
+      const marker = byId.get(info.airport.id) ?? {
+        airport: info.airport,
+        stays: [],
+      };
+      marker.stays.push({
+        name: entry.stay.name,
+        distanceKm: info.distanceKm,
+        driveMinutes: info.driveMinutes,
+      });
+      byId.set(info.airport.id, marker);
+    }
+    return [...byId.values()];
+  }, [airports, scoredStays]);
+
   const positions = useMemo<[number, number][]>(
-    () =>
-      locatedStays.map((located) => [located.coords.lat, located.coords.lng]),
-    [locatedStays]
+    () => [
+      ...locatedStays.map(
+        (located): [number, number] => [located.coords.lat, located.coords.lng]
+      ),
+      ...airportMarkers.map(
+        (marker): [number, number] => [
+          marker.airport.latitude,
+          marker.airport.longitude,
+        ]
+      ),
+    ],
+    [locatedStays, airportMarkers]
   );
 
   const staysWithAddress = stays.filter((stay) => stay.address?.trim());
@@ -168,6 +230,70 @@ export function StayMap({ scoredStays }: { scoredStays: ScoredStay[] }) {
                           /night
                         </span>
                       </p>
+                      {located.entry.nearby && (
+                        <div className="mt-1.5 border-t pt-1.5">
+                          {(
+                            [
+                              [
+                                "Food & cafés",
+                                located.entry.nearby.counts.restaurant +
+                                  located.entry.nearby.counts.cafe,
+                              ],
+                              ["Grocery", located.entry.nearby.counts.grocery],
+                              ["Transit", located.entry.nearby.counts.transit],
+                              [
+                                "Nightlife",
+                                located.entry.nearby.counts.nightlife,
+                              ],
+                            ] as const
+                          ).map(([label, count]) => (
+                            <p
+                              key={label}
+                              className="flex justify-between gap-3 text-xs"
+                            >
+                              <span className="text-muted-foreground">
+                                {label}
+                              </span>
+                              <span className="font-medium tabular-nums">
+                                {count} nearby
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+              {airportMarkers.map((marker) => (
+                <Marker
+                  key={marker.airport.id}
+                  position={[marker.airport.latitude, marker.airport.longitude]}
+                  icon={airportIcon()}
+                >
+                  <Popup offset={[0, -8]}>
+                    <div className="min-w-44 text-sm">
+                      <p className="mb-1 font-semibold">
+                        {marker.airport.name}
+                        {marker.airport.iata && (
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">
+                            ({marker.airport.iata})
+                          </span>
+                        )}
+                      </p>
+                      {marker.stays.map((stay) => (
+                        <p
+                          key={stay.name}
+                          className="flex justify-between gap-3 text-xs"
+                        >
+                          <span className="text-muted-foreground">
+                            From {stay.name}
+                          </span>
+                          <span className="font-medium tabular-nums">
+                            {stay.distanceKm} km · ~{stay.driveMinutes} min
+                          </span>
+                        </p>
+                      ))}
                     </div>
                   </Popup>
                 </Marker>

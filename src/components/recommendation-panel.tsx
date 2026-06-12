@@ -8,6 +8,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { VerdictBadge } from "@/components/verdict-badge";
+import { bestAirportStay } from "@/components/airport-intelligence";
+import type { AirportIntelligence } from "@/lib/airport-intelligence";
 import { TRAVELER_TYPES } from "@/lib/mock-data";
 import { CATEGORY_LABELS, type CategoryId, type ComparisonResult } from "@/lib/scoring";
 
@@ -21,8 +23,17 @@ function topCategories(result: ComparisonResult): string {
   return ranked.join(" and ");
 }
 
-export function RecommendationPanel({ result }: { result: ComparisonResult }) {
+export function RecommendationPanel({
+  result,
+  airports = {},
+}: {
+  result: ComparisonResult;
+  /** Nearest-airport data keyed by stay id, when available. */
+  airports?: Record<string, AirportIntelligence | null>;
+}) {
   const { bestOverall, biggestRisk, scoredStays } = result;
+  const bestAirport = airports[bestOverall.stay.id];
+  const bestConnected = bestAirportStay(scoredStays, airports);
   const travelerLabel =
     TRAVELER_TYPES.find((type) => type.id === result.travelerType)?.label.toLowerCase() ??
     result.travelerType;
@@ -55,6 +66,19 @@ export function RecommendationPanel({ result }: { result: ComparisonResult }) {
           {" — "}it leads your shortlist on {topCategories(result)}, and it&apos;s
           the best overall fit for a {travelerLabel} trip.
         </p>
+        {bestAirport && (
+          <p>
+            Airport access: about{" "}
+            <span className="font-medium">
+              {bestAirport.driveMinutes} min ({bestAirport.distanceKm} km)
+            </span>{" "}
+            to {bestAirport.airport.name}
+            {bestAirport.airport.iata ? ` (${bestAirport.airport.iata})` : ""}.
+            {bestConnected && bestConnected.stay.id !== bestOverall.stay.id
+              ? ` If a quick transfer matters most, ${bestConnected.stay.name} is your best-connected stay (~${airports[bestConnected.stay.id]?.driveMinutes} min).`
+              : " That's also the shortest airport transfer of your shortlist."}
+          </p>
+        )}
         {runnerUp && runnerUp.stay.id !== bestOverall.stay.id && (
           <p>
             <span className="font-medium">{runnerUp.stay.name}</span> is a solid

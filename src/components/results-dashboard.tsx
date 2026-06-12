@@ -12,12 +12,17 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AirportIntelligence } from "@/components/airport-intelligence";
 import { CategoryChart } from "@/components/category-chart";
 import { ListingScoreCard } from "@/components/listing-score-card";
+import { NearbyIntelligence } from "@/components/nearby-intelligence";
 import { ProsConsCard } from "@/components/pros-cons-card";
 import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
 import { ScoreCard } from "@/components/score-card";
+import { useAirportIntelligence } from "@/hooks/use-airport-intelligence";
+import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
+import { useNearbyPlaces } from "@/hooks/use-nearby-places";
 
 // Leaflet touches `window` at import time and adds weight; load it only
 // once the dashboard is shown, and never on the server.
@@ -40,7 +45,25 @@ interface ResultsDashboardProps {
 }
 
 export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps) {
-  const result = useMemo(() => scoreComparison(request), [request]);
+  // Resolve coordinates (stored or geocoded), then pull real OpenStreetMap
+  // nearby-place signals for each located stay. Scores start from the mock
+  // engine and refine in place once the live data lands.
+  const { locations } = useGeocodedStays(request.stays);
+  const {
+    intelligence,
+    errors: nearbyErrors,
+    loading: nearbyLoading,
+  } = useNearbyPlaces(locations, request.travelerType);
+  const {
+    airports,
+    errors: airportErrors,
+    loading: airportsLoading,
+  } = useAirportIntelligence(locations);
+
+  const result = useMemo(
+    () => scoreComparison(request, intelligence),
+    [request, intelligence]
+  );
   const traveler = TRAVELER_TYPES.find((type) => type.id === request.travelerType);
 
   return (
@@ -99,11 +122,24 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
         />
       </div>
 
-      <RecommendationPanel result={result} />
+      <RecommendationPanel result={result} airports={airports} />
 
       <RankingTable scoredStays={result.scoredStays} />
 
-      <StayMap scoredStays={result.scoredStays} />
+      <StayMap scoredStays={result.scoredStays} airports={airports} />
+
+      <NearbyIntelligence
+        scoredStays={result.scoredStays}
+        errors={nearbyErrors}
+        loading={nearbyLoading}
+      />
+
+      <AirportIntelligence
+        scoredStays={result.scoredStays}
+        airports={airports}
+        errors={airportErrors}
+        loading={airportsLoading}
+      />
 
       <CategoryChart scoredStays={result.scoredStays} />
 
