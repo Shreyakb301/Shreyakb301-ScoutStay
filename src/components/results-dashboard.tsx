@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { AirportIntelligence } from "@/components/airport-intelligence";
 import { CategoryChart } from "@/components/category-chart";
 import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
+import { ExportReportButton } from "@/components/export-report-button";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
 import { PreferencePanel } from "@/components/preference-panel";
@@ -22,6 +23,7 @@ import { ProsConsCard } from "@/components/pros-cons-card";
 import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
 import { ScoreCard } from "@/components/score-card";
+import { TravelDecisionBrief } from "@/components/travel-decision-brief";
 import { useAirportIntelligence } from "@/hooks/use-airport-intelligence";
 import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
@@ -90,10 +92,13 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
             trip.
           </p>
         </div>
-        <Button variant="outline" onClick={onStartOver}>
-          <RotateCcw className="size-4" />
-          Start over
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportReportButton result={result} weights={weights} />
+          <Button variant="outline" size="sm" onClick={onStartOver}>
+            <RotateCcw className="size-4" />
+            Start over
+          </Button>
+        </div>
       </div>
 
       <PreferencePanel
@@ -103,6 +108,8 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
           setWeights(TRAVELER_DEFAULT_WEIGHTS[request.travelerType])
         }
       />
+
+      <TravelDecisionBrief result={result} weights={weights} />
 
       {/* Highlights */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
