@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AirportIntelligence } from "@/components/airport-intelligence";
 import { CategoryChart } from "@/components/category-chart";
+import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
 import { ProsConsCard } from "@/components/pros-cons-card";
@@ -61,8 +62,8 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
   } = useAirportIntelligence(locations);
 
   const result = useMemo(
-    () => scoreComparison(request, intelligence),
-    [request, intelligence]
+    () => scoreComparison(request, intelligence, airports),
+    [request, intelligence, airports]
   );
   const traveler = TRAVELER_TYPES.find((type) => type.id === request.travelerType);
 
@@ -168,6 +169,8 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
           ))}
         </div>
       </div>
+
+      <ExplainableScoreBreakdown scoredStays={result.scoredStays} />
 
       <Separator />
 

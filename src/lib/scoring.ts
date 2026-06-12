@@ -1,3 +1,4 @@
+import type { AirportIntelligence } from "@/lib/airport-intelligence";
 import type {
   ComparisonRequest,
   LocationIntelligence,
@@ -23,6 +24,26 @@ export type CategoryScores = Record<CategoryId, number>;
 
 export type Verdict = "Book" | "Maybe" | "Avoid";
 
+/**
+ * High = built from real data (OpenStreetMap counts, airport distance,
+ * entered prices). Medium = informed by user-provided notes keywords.
+ * Low = mock estimate from platform type and a stable baseline only.
+ */
+export type ConfidenceLevel = "High" | "Medium" | "Low";
+
+export type ExplainedCategoryId = CategoryId | "airportAccessScore";
+
+export interface ScoreExplanation {
+  id: ExplainedCategoryId;
+  label: string;
+  score: number;
+  /** One-sentence summary of where this score came from. */
+  reason: string;
+  positives: string[];
+  negatives: string[];
+  confidence: ConfidenceLevel;
+}
+
 export interface ScoredStay {
   stay: StayListing;
   rank: number;
@@ -31,8 +52,12 @@ export interface ScoredStay {
   verdict: Verdict;
   pros: string[];
   cons: string[];
+  /** Per-category reasoning behind the scores, in display order. */
+  explanations: ScoreExplanation[];
   /** Real OpenStreetMap signals, when available for this stay's location. */
   nearby?: LocationIntelligence;
+  /** Nearest-airport data, when available for this stay's location. */
+  airport?: AirportIntelligence | null;
 }
 
 export interface ComparisonResult {
@@ -124,15 +149,29 @@ const KEYWORD_RULES: Partial<Record<CategoryId, KeywordRule[]>> = {
   ],
 };
 
-function keywordAdjustment(text: string, category: CategoryId): number {
+interface KeywordMatch {
+  keyword: string;
+  delta: number;
+}
+
+/** Which keywords from the listing text influenced this category, and how. */
+function keywordMatches(text: string, category: CategoryId): KeywordMatch[] {
   const rules = KEYWORD_RULES[category];
-  if (!rules) return 0;
-  let total = 0;
+  if (!rules) return [];
+  const matches: KeywordMatch[] = [];
   for (const rule of rules) {
     for (const keyword of rule.keywords) {
-      if (text.includes(keyword)) total += rule.delta;
+      if (text.includes(keyword)) matches.push({ keyword, delta: rule.delta });
     }
   }
+  return matches;
+}
+
+function keywordAdjustment(text: string, category: CategoryId): number {
+  const total = keywordMatches(text, category).reduce(
+    (sum, match) => sum + match.delta,
+    0
+  );
   // Cap keyword influence so one wordy listing can't run away.
   return Math.min(15, Math.max(-20, total));
 }
@@ -242,6 +281,246 @@ function buildProsAndCons(
 }
 
 /* ------------------------------------------------------------------ */
+/* Score explanations                                                  */
+/* ------------------------------------------------------------------ */
+
+export const EXPLAINED_LABELS: Record<ExplainedCategoryId, string> = {
+  ...CATEGORY_LABELS,
+  airportAccessScore: "Airport access",
+};
+
+const PLATFORM_NAMES: Record<Platform, string> = {
+  airbnb: "Airbnb",
+  vrbo: "Vrbo",
+  booking: "Booking.com",
+  hotel: "Direct hotel",
+  other: "Other-platform",
+};
+
+const TRAVELER_NAMES: Record<TravelerTypeId, string> = {
+  solo: "solo",
+  couple: "couple",
+  family: "family",
+  friends: "friend-group",
+  business: "business",
+};
+
+interface ExplanationContext {
+  stay: StayListing;
+  scores: CategoryScores;
+  text: string;
+  travelerType: TravelerTypeId;
+  nearby?: LocationIntelligence;
+  airport?: AirportIntelligence | null;
+  averagePrice: number;
+  validPriceCount: number;
+  cheapest: boolean;
+  priciest: boolean;
+}
+
+/**
+ * Explanation for a category scored from heuristics only: a stable
+ * baseline, platform tendencies, and any keywords found in the notes.
+ */
+function heuristicExplanation(
+  category: CategoryId,
+  ctx: ExplanationContext
+): ScoreExplanation {
+  const matches = keywordMatches(ctx.text, category);
+  const positives = matches
+    .filter((match) => match.delta > 0)
+    .map((match) => `Your notes mention “${match.keyword}”`);
+  const negatives = matches
+    .filter((match) => match.delta < 0)
+    .map((match) => `Your notes mention “${match.keyword}”`);
+
+  const platformDelta = PLATFORM_ADJUSTMENTS[ctx.stay.platform][category] ?? 0;
+  const platformName = PLATFORM_NAMES[ctx.stay.platform];
+  if (platformDelta > 0) {
+    positives.push(`${platformName} listings tend to do well here`);
+  } else if (platformDelta < 0) {
+    negatives.push(`${platformName} listings tend to lag here`);
+  }
+
+  return {
+    id: category,
+    label: CATEGORY_LABELS[category],
+    score: ctx.scores[category],
+    reason:
+      matches.length > 0
+        ? "Estimated from your notes and the platform type."
+        : "Rough estimate from the platform type only — add notes or an address for better signals.",
+    positives,
+    negatives,
+    confidence: matches.length > 0 ? "Medium" : "Low",
+  };
+}
+
+/** Explanation backed by real OpenStreetMap nearby-place counts. */
+function nearbyExplanation(
+  category: CategoryId,
+  ctx: ExplanationContext,
+  nearby: LocationIntelligence
+): ScoreExplanation {
+  const { counts, radiusMeters } = nearby;
+  const positives: string[] = [];
+  const negatives: string[] = [];
+  let reason = "";
+
+  if (category === "foodAccessScore") {
+    const total = counts.restaurant + counts.cafe;
+    reason = `${total} restaurants and cafés mapped within ${radiusMeters} m.`;
+    if (total >= 20) positives.push(`Dining is abundant: ${counts.restaurant} restaurants, ${counts.cafe} cafés`);
+    else if (total >= 8) positives.push(`Solid choice nearby: ${counts.restaurant} restaurants, ${counts.cafe} cafés`);
+    if (total === 0) negatives.push("No restaurants or cafés within walking distance");
+    else if (total < 4) negatives.push(`Only ${total} dining options nearby`);
+  } else if (category === "transitScore") {
+    reason = `${counts.transit} public transport stops or stations within ${radiusMeters} m.`;
+    if (counts.transit >= 8) positives.push(`Excellent coverage: ${counts.transit} stops/stations nearby`);
+    else if (counts.transit >= 3) positives.push(`${counts.transit} stops/stations within walking distance`);
+    if (counts.transit === 0) negatives.push("No public transport within walking distance — plan on driving");
+    else if (counts.transit < 3) negatives.push("Sparse transit options nearby");
+  } else if (category === "noiseRiskScore") {
+    reason = `${counts.nightlife} bars, pubs, or clubs mapped within ${radiusMeters} m.`;
+    if (counts.nightlife <= 2) positives.push("Little to no nightlife nearby — likely quiet at night");
+    else if (counts.nightlife <= 8) positives.push("Moderate nightlife presence");
+    if (counts.nightlife > 25) negatives.push(`${counts.nightlife} nightlife venues nearby — expect evening noise`);
+    else if (counts.nightlife > 8) negatives.push(`${counts.nightlife} nightlife venues within earshot`);
+  }
+
+  return {
+    id: category,
+    label: CATEGORY_LABELS[category],
+    score: ctx.scores[category],
+    reason,
+    positives,
+    negatives,
+    confidence: "High",
+  };
+}
+
+function valueExplanation(ctx: ExplanationContext): ScoreExplanation {
+  const price = Number(ctx.stay.pricePerNight) || 0;
+  const positives: string[] = [];
+  const negatives: string[] = [];
+  const comparable = ctx.validPriceCount > 1 && price > 0;
+
+  if (comparable) {
+    const deltaPct = Math.round(
+      ((price - ctx.averagePrice) / ctx.averagePrice) * 100
+    );
+    if (ctx.cheapest) positives.push("Lowest nightly rate of your shortlist");
+    if (deltaPct <= -10) positives.push(`$${price}/night is ${-deltaPct}% below your shortlist average`);
+    if (ctx.priciest) negatives.push("Highest nightly rate of your shortlist");
+    if (deltaPct >= 10) negatives.push(`$${price}/night is ${deltaPct}% above your shortlist average`);
+  }
+
+  return {
+    id: "valueScore",
+    label: CATEGORY_LABELS.valueScore,
+    score: ctx.scores.valueScore,
+    reason: comparable
+      ? `Compared against your shortlist average of $${Math.round(ctx.averagePrice)}/night.`
+      : "Needs at least two priced stays for a real comparison.",
+    positives,
+    negatives,
+    confidence: comparable ? "High" : "Low",
+  };
+}
+
+function travelerFitExplanation(ctx: ExplanationContext): ScoreExplanation {
+  const weights = TRAVELER_WEIGHTS[ctx.travelerType];
+  const weighted = (Object.entries(weights) as [CategoryId, number][]).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const travelerName = TRAVELER_NAMES[ctx.travelerType];
+
+  const positives: string[] = [];
+  const negatives: string[] = [];
+  for (const [category, weight] of weighted) {
+    const score = ctx.scores[category];
+    const pct = Math.round(weight * 100);
+    if (score >= 75) {
+      positives.push(`Strong ${CATEGORY_LABELS[category].toLowerCase()} (${score}) — weighted ${pct}% for ${travelerName} trips`);
+    } else if (score <= 55 && weight >= 0.15) {
+      negatives.push(`Weak ${CATEGORY_LABELS[category].toLowerCase()} (${score}) — weighted ${pct}% for ${travelerName} trips`);
+    }
+  }
+
+  const platformBonus = PLATFORM_FIT[ctx.travelerType][ctx.stay.platform] ?? 0;
+  if (platformBonus > 0) {
+    positives.push(`${PLATFORM_NAMES[ctx.stay.platform]} stays suit ${travelerName} trips`);
+  }
+
+  const topLabels = weighted
+    .slice(0, 2)
+    .map(([category]) => CATEGORY_LABELS[category].toLowerCase())
+    .join(" and ");
+
+  return {
+    id: "travelerFitScore",
+    label: CATEGORY_LABELS.travelerFitScore,
+    score: ctx.scores.travelerFitScore,
+    reason: `Blend of what ${travelerName} trips prioritize — mostly ${topLabels}.`,
+    positives: positives.slice(0, 3),
+    negatives: negatives.slice(0, 3),
+    confidence: ctx.nearby ? "High" : "Medium",
+  };
+}
+
+function airportExplanation(
+  ctx: ExplanationContext,
+  airport: AirportIntelligence
+): ScoreExplanation {
+  const positives: string[] = [];
+  const negatives: string[] = [];
+  const iata = airport.airport.iata ? ` (${airport.airport.iata})` : "";
+
+  if (airport.distanceKm < 10) {
+    positives.push(`Short transfer: ~${airport.driveMinutes} min drive`);
+  } else if (airport.distanceKm <= 25) {
+    positives.push(`Manageable transfer: ~${airport.driveMinutes} min drive`);
+  }
+  if (airport.distanceKm > 50) {
+    negatives.push(`Long transfer: ${airport.distanceKm} km from the airport`);
+  } else if (airport.distanceKm > 25) {
+    negatives.push(`${airport.distanceKm} km out — budget extra transfer time`);
+  }
+
+  return {
+    id: "airportAccessScore",
+    label: EXPLAINED_LABELS.airportAccessScore,
+    score: airport.accessibilityScore,
+    reason: `${airport.distanceKm} km (~${airport.driveMinutes} min at 40 km/h) to ${airport.airport.name}${iata}.`,
+    positives,
+    negatives,
+    confidence: "High",
+  };
+}
+
+/** Display order: location facts first, then price, fit, and airport. */
+function buildExplanations(ctx: ExplanationContext): ScoreExplanation[] {
+  const real = (category: CategoryId) =>
+    ctx.nearby
+      ? nearbyExplanation(category, ctx, ctx.nearby)
+      : heuristicExplanation(category, ctx);
+
+  const explanations: ScoreExplanation[] = [
+    heuristicExplanation("safetyScore", ctx),
+    heuristicExplanation("walkabilityScore", ctx),
+    real("transitScore"),
+    real("foodAccessScore"),
+    real("noiseRiskScore"),
+    valueExplanation(ctx),
+    travelerFitExplanation(ctx),
+  ];
+  if (ctx.airport) {
+    explanations.push(airportExplanation(ctx, ctx.airport));
+  }
+  return explanations;
+}
+
+/* ------------------------------------------------------------------ */
 /* Main entry point                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -254,11 +533,13 @@ function scoreCategory(stay: StayListing, category: CategoryId, text: string): n
  * Scores the comparison. When `nearbyByStayId` carries real OpenStreetMap
  * signals for a stay, those replace the mock estimates for food access,
  * transit, and quietness; everything else (and stays without nearby data)
- * falls back to the deterministic mock scoring.
+ * falls back to the deterministic mock scoring. `airportsByStayId` feeds
+ * the airport-access explanation but does not change category scores.
  */
 export function scoreComparison(
   request: ComparisonRequest,
-  nearbyByStayId?: Record<string, LocationIntelligence>
+  nearbyByStayId?: Record<string, LocationIntelligence>,
+  airportsByStayId?: Record<string, AirportIntelligence | null>
 ): ComparisonResult {
   const { travelerType, stays } = request;
 
@@ -316,12 +597,23 @@ export function scoreComparison(
     const overallScore = clamp(75 + (rawOverall - 75) * 1.4);
 
     const price = Number(stay.pricePerNight) || 0;
-    const { pros, cons } = buildProsAndCons(
-      scores,
+    const cheapest = validPrices.length > 1 && price === minPrice;
+    const priciest = validPrices.length > 1 && price === maxPrice;
+    const { pros, cons } = buildProsAndCons(scores, stay, cheapest, priciest);
+
+    const airport = airportsByStayId?.[stay.id];
+    const explanations = buildExplanations({
       stay,
-      validPrices.length > 1 && price === minPrice,
-      validPrices.length > 1 && price === maxPrice
-    );
+      scores,
+      text,
+      travelerType,
+      nearby,
+      airport,
+      averagePrice,
+      validPriceCount: validPrices.length,
+      cheapest,
+      priciest,
+    });
 
     return {
       stay,
@@ -331,7 +623,9 @@ export function scoreComparison(
       verdict: getVerdict(overallScore),
       pros,
       cons,
+      explanations,
       nearby,
+      airport,
     } satisfies ScoredStay;
   });
 

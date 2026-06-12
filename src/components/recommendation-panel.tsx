@@ -11,16 +11,38 @@ import { VerdictBadge } from "@/components/verdict-badge";
 import { bestAirportStay } from "@/components/airport-intelligence";
 import type { AirportIntelligence } from "@/lib/airport-intelligence";
 import { TRAVELER_TYPES } from "@/lib/mock-data";
-import { CATEGORY_LABELS, type CategoryId, type ComparisonResult } from "@/lib/scoring";
+import type { ComparisonResult, ScoredStay } from "@/lib/scoring";
 
-function topCategories(result: ComparisonResult): string {
-  const { scores } = result.bestOverall;
-  const ranked = (Object.entries(scores) as [CategoryId, number][])
-    .filter(([category]) => category !== "travelerFitScore")
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([category]) => CATEGORY_LABELS[category].toLowerCase());
-  return ranked.join(" and ");
+const CONFIDENCE_RANK = { High: 0, Medium: 1, Low: 2 } as const;
+
+/**
+ * The strongest reasons behind the top pick, phrased for prose. Prefers
+ * high-confidence (real-data) explanations, then higher scores.
+ */
+function topReasons(entry: ScoredStay, isBestConnected: boolean): string[] {
+  return entry.explanations
+    .filter(
+      (explanation) =>
+        explanation.score >= 70 && explanation.id !== "travelerFitScore"
+    )
+    .sort(
+      (a, b) =>
+        CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence] ||
+        b.score - a.score
+    )
+    .slice(0, 3)
+    .map((explanation) => {
+      if (explanation.id === "airportAccessScore" && isBestConnected) {
+        return "the shortest airport transfer";
+      }
+      const adjective = explanation.score >= 85 ? "excellent" : "strong";
+      return `${adjective} ${explanation.label.toLowerCase()} (${explanation.score})`;
+    });
+}
+
+function joinProse(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
 export function RecommendationPanel({
@@ -39,6 +61,10 @@ export function RecommendationPanel({
     result.travelerType;
   const runnerUp = scoredStays.length > 1 ? scoredStays[1] : null;
   const sameStay = biggestRisk.stay.id === bestOverall.stay.id;
+  const reasons = topReasons(
+    bestOverall,
+    bestConnected?.stay.id === bestOverall.stay.id
+  );
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -63,8 +89,11 @@ export function RecommendationPanel({
             {bestOverall.overallScore}/100
           </span>{" "}
           <VerdictBadge verdict={bestOverall.verdict} className="align-middle" />
-          {" — "}it leads your shortlist on {topCategories(result)}, and it&apos;s
-          the best overall fit for a {travelerLabel} trip.
+          {" — "}
+          {reasons.length > 0
+            ? `it ranks first because it has ${joinProse(reasons)}`
+            : "it's the best overall fit"}
+          , making it the strongest match for a {travelerLabel} trip.
         </p>
         {bestAirport && (
           <p>
