@@ -1,103 +1,107 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { TRAVELER_TYPES } from "@/lib/mock-data";
+
+const STEPS = [
+  {
+    title: "Tell us who's traveling",
+    description:
+      "Solo, couple, family, friends, or business — each trip type has different priorities.",
+  },
+  {
+    title: "Paste your shortlisted stays",
+    description:
+      "Add 2–5 listings from Airbnb, Vrbo, Booking.com, or a hotel site, with the nightly price.",
+  },
+  {
+    title: "Get a side-by-side verdict",
+    description:
+      "We line your options up against the criteria that matter for your trip. (Coming soon!)",
+  },
+];
+
+export default function HomePage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="mx-auto max-w-5xl px-4">
+      {/* Hero */}
+      <section className="flex flex-col items-center gap-6 py-20 text-center md:py-28">
+        <Badge variant="secondary">Stop juggling browser tabs</Badge>
+        <h1 className="max-w-2xl text-4xl font-bold tracking-tight md:text-5xl">
+          Compare your shortlisted stays, side by side
+        </h1>
+        <p className="max-w-xl text-lg text-muted-foreground">
+          You&apos;ve narrowed it down to a few places. StayCompare lines them
+          up against what actually matters for your kind of trip, so you can
+          book with confidence.
+        </p>
+        <div className="flex gap-3">
+          <Button size="lg" render={<Link href="/compare" />}>
+            Compare stays
+          </Button>
+          <Button size="lg" variant="outline" render={<Link href="#how-it-works" />}>
+            How it works
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="scroll-mt-20 py-12">
+        <h2 className="text-center text-2xl font-semibold tracking-tight">
+          How it works
+        </h2>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {STEPS.map((step, index) => (
+            <Card key={step.title}>
+              <CardHeader>
+                <span className="font-mono text-sm text-muted-foreground">
+                  Step {index + 1}
+                </span>
+                <CardTitle className="text-lg">{step.title}</CardTitle>
+                <CardDescription>{step.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Traveler types preview */}
+      <section className="py-12">
+        <h2 className="text-center text-2xl font-semibold tracking-tight">
+          Built for every kind of trip
+        </h2>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          {TRAVELER_TYPES.map((type) => (
+            <Badge
+              key={type.id}
+              variant="outline"
+              className="px-4 py-2 text-sm"
+            >
+              <span aria-hidden className="mr-1">
+                {type.icon}
+              </span>
+              {type.label}
+            </Badge>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="flex flex-col items-center gap-4 py-16 text-center">
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Ready to settle the debate?
+        </h2>
+        <Button size="lg" render={<Link href="/compare" />}>
+          Start comparing
+        </Button>
+      </section>
     </div>
   );
 }
