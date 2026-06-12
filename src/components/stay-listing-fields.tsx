@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -112,6 +113,24 @@ export function StayListingFields({
               onChange(stay.id, { pricePerNight: event.target.value })
             }
             required
+          />
+        </div>
+
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor={`stay-${stay.id}-notes`}>
+            Notes{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional — location details, review snippets, amenities)
+            </span>
+          </Label>
+          <Textarea
+            id={`stay-${stay.id}-notes`}
+            placeholder="e.g. Two blocks from the metro, reviews mention street noise on weekends..."
+            value={stay.notes ?? ""}
+            onChange={(event) =>
+              onChange(stay.id, { notes: event.target.value })
+            }
+            rows={2}
           />
         </div>
       </CardContent>

@@ -5,6 +5,7 @@ import { Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ResultsDashboard } from "@/components/results-dashboard";
 import { StayListingFields } from "@/components/stay-listing-fields";
 import { TravelerTypeSelector } from "@/components/traveler-type-selector";
 import { SAMPLE_STAYS } from "@/lib/mock-data";
@@ -23,6 +24,7 @@ function createEmptyStay(): StayListing {
     url: "",
     platform: "airbnb",
     pricePerNight: "",
+    notes: "",
   };
 }
 
@@ -70,7 +72,17 @@ export function CompareForm() {
     event.preventDefault();
     if (!travelerType) return;
     setSubmitted({ travelerType, stays });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  if (submitted) {
+    return (
+      <ResultsDashboard
+        request={submitted}
+        onStartOver={() => setSubmitted(null)}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -147,18 +159,6 @@ export function CompareForm() {
           <p className="text-center text-sm text-muted-foreground">
             Select a traveler type to continue.
           </p>
-        )}
-        {submitted && (
-          <div className="rounded-lg border bg-muted/50 p-4 text-sm">
-            <p className="font-medium">
-              ✓ Got it — {submitted.stays.length} stays for a{" "}
-              {submitted.travelerType} trip.
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              The comparison dashboard is coming soon. Your input is captured
-              and ready for it.
-            </p>
-          </div>
         )}
       </section>
     </form>

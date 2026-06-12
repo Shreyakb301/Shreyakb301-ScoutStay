@@ -24,6 +24,8 @@ export interface StayListing {
   url: string;
   platform: Platform;
   pricePerNight: string;
+  /** Optional free-text notes: review snippets, location details, amenities. */
+  notes?: string;
 }
 
 export interface ComparisonRequest {

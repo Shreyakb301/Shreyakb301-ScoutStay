@@ -53,17 +53,23 @@ export const SAMPLE_STAYS: Omit<StayListing, "id">[] = [
     url: "https://www.airbnb.com/rooms/12345678",
     platform: "airbnb",
     pricePerNight: "142",
+    notes:
+      "Walkable central location, lots of cafes and restaurants nearby. Reviews mention some street noise on weekends from nearby bars.",
   },
   {
     name: "Riverside Cabin Retreat",
     url: "https://www.vrbo.com/9876543",
     platform: "vrbo",
     pricePerNight: "189",
+    notes:
+      "Quiet and secluded riverside spot with a full kitchen. Car required — about 20 minutes drive to town, no transit nearby.",
   },
   {
     name: "Hotel Meridian, King Room",
     url: "https://www.booking.com/hotel/meridian",
     platform: "booking",
     pricePerNight: "165",
+    notes:
+      "Modern hotel with 24h front desk, gym, and fast wifi. Two blocks from the metro station, dining options in the lobby and nearby.",
   },
 ];
