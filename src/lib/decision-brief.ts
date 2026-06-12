@@ -121,7 +121,7 @@ function preferencesSection(
   return {
     id: "preferences",
     title: "Your priorities",
-    body: `${blend} ${winner.stay.name} holds #1 under this blend — drag the sliders above to stress-test it.`,
+    body: `${blend} ${winner.stay.name} holds #1 under this blend.`,
   };
 }
 
