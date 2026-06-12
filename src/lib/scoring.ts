@@ -70,6 +70,68 @@ export interface ComparisonResult {
   biggestRisk: ScoredStay;
 }
 
+/**
+ * Relative importance per category on a 0–100 slider scale. Only the
+ * proportions matter — weights are normalized before scoring.
+ */
+export type ScoreWeights = Record<CategoryId, number>;
+
+/** Starting weights per traveler type (overall-score blend, slider scale). */
+export const TRAVELER_DEFAULT_WEIGHTS: Record<TravelerTypeId, ScoreWeights> = {
+  solo: { safetyScore: 45, walkabilityScore: 25, transitScore: 25, foodAccessScore: 15, noiseRiskScore: 10, valueScore: 40, travelerFitScore: 60 },
+  couple: { safetyScore: 30, walkabilityScore: 25, transitScore: 15, foodAccessScore: 30, noiseRiskScore: 35, valueScore: 35, travelerFitScore: 60 },
+  family: { safetyScore: 50, walkabilityScore: 15, transitScore: 15, foodAccessScore: 25, noiseRiskScore: 35, valueScore: 40, travelerFitScore: 60 },
+  friends: { safetyScore: 20, walkabilityScore: 35, transitScore: 25, foodAccessScore: 30, noiseRiskScore: 5, valueScore: 55, travelerFitScore: 60 },
+  business: { safetyScore: 35, walkabilityScore: 30, transitScore: 55, foodAccessScore: 15, noiseRiskScore: 20, valueScore: 25, travelerFitScore: 60 },
+};
+
+export interface WeightPreset {
+  id: string;
+  label: string;
+  weights: ScoreWeights;
+}
+
+export const WEIGHT_PRESETS: WeightPreset[] = [
+  {
+    id: "balanced",
+    label: "Balanced",
+    weights: { safetyScore: 50, walkabilityScore: 50, transitScore: 50, foodAccessScore: 50, noiseRiskScore: 50, valueScore: 50, travelerFitScore: 50 },
+  },
+  {
+    id: "quiet",
+    label: "Quiet Trip",
+    weights: { safetyScore: 60, walkabilityScore: 35, transitScore: 25, foodAccessScore: 35, noiseRiskScore: 90, valueScore: 45, travelerFitScore: 50 },
+  },
+  {
+    id: "foodie",
+    label: "Foodie",
+    weights: { safetyScore: 35, walkabilityScore: 65, transitScore: 45, foodAccessScore: 90, noiseRiskScore: 25, valueScore: 40, travelerFitScore: 50 },
+  },
+  {
+    id: "budget",
+    label: "Budget",
+    weights: { safetyScore: 35, walkabilityScore: 40, transitScore: 45, foodAccessScore: 35, noiseRiskScore: 30, valueScore: 90, travelerFitScore: 50 },
+  },
+  {
+    id: "business",
+    label: "Business",
+    weights: { safetyScore: 55, walkabilityScore: 55, transitScore: 90, foodAccessScore: 30, noiseRiskScore: 45, valueScore: 25, travelerFitScore: 55 },
+  },
+];
+
+/** Weights as fractions summing to 1; equal weighting if everything is 0. */
+export function normalizeWeights(weights: ScoreWeights): ScoreWeights {
+  const entries = Object.entries(weights) as [CategoryId, number][];
+  const total = entries.reduce((sum, [, weight]) => sum + Math.max(0, weight), 0);
+  if (total <= 0) {
+    const equal = 1 / entries.length;
+    return Object.fromEntries(entries.map(([id]) => [id, equal])) as ScoreWeights;
+  }
+  return Object.fromEntries(
+    entries.map(([id, weight]) => [id, Math.max(0, weight) / total])
+  ) as ScoreWeights;
+}
+
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
   safetyScore: "Safety",
   walkabilityScore: "Walkability",
@@ -535,13 +597,19 @@ function scoreCategory(stay: StayListing, category: CategoryId, text: string): n
  * transit, and quietness; everything else (and stays without nearby data)
  * falls back to the deterministic mock scoring. `airportsByStayId` feeds
  * the airport-access explanation but does not change category scores.
+ * `weights` controls only the overall-score blend (and therefore ranking);
+ * it defaults to the traveler type's preset.
  */
 export function scoreComparison(
   request: ComparisonRequest,
   nearbyByStayId?: Record<string, LocationIntelligence>,
-  airportsByStayId?: Record<string, AirportIntelligence | null>
+  airportsByStayId?: Record<string, AirportIntelligence | null>,
+  weights?: ScoreWeights
 ): ComparisonResult {
   const { travelerType, stays } = request;
+  const normalizedWeights = normalizeWeights(
+    weights ?? TRAVELER_DEFAULT_WEIGHTS[travelerType]
+  );
 
   const prices = stays.map((stay) => Number(stay.pricePerNight) || 0);
   const validPrices = prices.filter((price) => price > 0);
@@ -583,15 +651,11 @@ export function scoreComparison(
     const platformBonus = PLATFORM_FIT[travelerType][stay.platform] ?? 0;
     scores.travelerFitScore = clamp(weightedFit + platformBonus);
 
-    // Overall: traveler fit leads, value and safety follow.
-    const rawOverall =
-      scores.travelerFitScore * 0.3 +
-      scores.valueScore * 0.2 +
-      scores.safetyScore * 0.15 +
-      scores.walkabilityScore * 0.1 +
-      scores.transitScore * 0.1 +
-      scores.foodAccessScore * 0.1 +
-      scores.noiseRiskScore * 0.05;
+    // Overall: weighted blend of the category scores. Weights come from
+    // the user's preference sliders (or the traveler-type default).
+    const rawOverall = (
+      Object.entries(normalizedWeights) as [CategoryId, number][]
+    ).reduce((sum, [category, weight]) => sum + scores[category] * weight, 0);
     // Weighted averages compress toward the middle; stretch around 75 so
     // strong picks can clear the "Book" bar and weak ones land in "Avoid".
     const overallScore = clamp(75 + (rawOverall - 75) * 1.4);

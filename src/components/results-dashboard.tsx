@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   AlertTriangle,
@@ -17,6 +17,7 @@ import { CategoryChart } from "@/components/category-chart";
 import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
+import { PreferencePanel } from "@/components/preference-panel";
 import { ProsConsCard } from "@/components/pros-cons-card";
 import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
@@ -37,7 +38,11 @@ const StayMap = dynamic(
   }
 );
 import { TRAVELER_TYPES } from "@/lib/mock-data";
-import { scoreComparison } from "@/lib/scoring";
+import {
+  scoreComparison,
+  TRAVELER_DEFAULT_WEIGHTS,
+  type ScoreWeights,
+} from "@/lib/scoring";
 import type { ComparisonRequest } from "@/lib/types";
 
 interface ResultsDashboardProps {
@@ -61,9 +66,13 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
     loading: airportsLoading,
   } = useAirportIntelligence(locations);
 
+  const [weights, setWeights] = useState<ScoreWeights>(
+    () => TRAVELER_DEFAULT_WEIGHTS[request.travelerType]
+  );
+
   const result = useMemo(
-    () => scoreComparison(request, intelligence, airports),
-    [request, intelligence, airports]
+    () => scoreComparison(request, intelligence, airports, weights),
+    [request, intelligence, airports, weights]
   );
   const traveler = TRAVELER_TYPES.find((type) => type.id === request.travelerType);
 
@@ -86,6 +95,14 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
           Start over
         </Button>
       </div>
+
+      <PreferencePanel
+        weights={weights}
+        onWeightsChange={setWeights}
+        onReset={() =>
+          setWeights(TRAVELER_DEFAULT_WEIGHTS[request.travelerType])
+        }
+      />
 
       {/* Highlights */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
