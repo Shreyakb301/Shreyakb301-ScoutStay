@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
   PiggyBank,
@@ -17,6 +18,18 @@ import { ProsConsCard } from "@/components/pros-cons-card";
 import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
 import { ScoreCard } from "@/components/score-card";
+
+// Leaflet touches `window` at import time and adds weight; load it only
+// once the dashboard is shown, and never on the server.
+const StayMap = dynamic(
+  () => import("@/components/stay-map").then((module) => module.StayMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-96 w-full animate-pulse rounded-xl bg-muted" />
+    ),
+  }
+);
 import { TRAVELER_TYPES } from "@/lib/mock-data";
 import { scoreComparison } from "@/lib/scoring";
 import type { ComparisonRequest } from "@/lib/types";
@@ -89,6 +102,8 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
       <RecommendationPanel result={result} />
 
       <RankingTable scoredStays={result.scoredStays} />
+
+      <StayMap scoredStays={result.scoredStays} />
 
       <CategoryChart scoredStays={result.scoredStays} />
 

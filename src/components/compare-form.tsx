@@ -24,6 +24,7 @@ function createEmptyStay(): StayListing {
     url: "",
     platform: "airbnb",
     pricePerNight: "",
+    address: "",
     notes: "",
   };
 }

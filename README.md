@@ -1,5 +1,16 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Maps & geocoding (OpenStreetMap — no API key required)
+
+The dashboard map and address autocomplete run entirely on free, open services. There is **no token, account, or `.env` setup**:
+
+- **Map display:** [React Leaflet](https://react-leaflet.js.org/) rendering [OpenStreetMap](https://www.openstreetmap.org/) tiles (attribution shown on the map).
+- **Geocoding & address search:** [Nominatim](https://nominatim.org/), OpenStreetMap's geocoder.
+
+To stay within Nominatim's [usage policy](https://operations.osmfoundation.org/policies/nominatim/), the app debounces autocomplete input (500 ms), throttles all geocoding requests to at most ~1 per second, and caches every result in memory for the session so the same address is never requested twice. Nominatim is a shared community service — fine for development and light use; for production traffic you should self-host Nominatim or use a commercial OSM-based provider.
+
+**Testing locally:** run `npm run dev`, open `/compare`, and type a real address (3+ characters) into a stay's Address field — suggestions appear after a short pause. Pick one, submit the form, and the dashboard's "Location intelligence" card shows numbered, color-coded markers; click a marker for the stay's score, platform, and nightly price. Stays whose address can't be placed are listed in a footnote under the map instead of failing the page.
+
 ## Getting Started
 
 First, run the development server:

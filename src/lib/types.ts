@@ -24,6 +24,15 @@ export interface StayListing {
   url: string;
   platform: Platform;
   pricePerNight: string;
+  /** Formatted address (from autocomplete selection or typed manually). */
+  address?: string;
+  /** Coordinates, set when the user picks an autocomplete suggestion. */
+  latitude?: number;
+  longitude?: number;
+  /** Short place name from the selected suggestion, e.g. street or POI name. */
+  placeName?: string;
+  city?: string;
+  region?: string;
   /** Optional free-text notes: review snippets, location details, amenities. */
   notes?: string;
 }

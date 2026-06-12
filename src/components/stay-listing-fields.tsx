@@ -2,6 +2,7 @@
 
 import { Trash2 } from "lucide-react";
 
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -113,6 +114,57 @@ export function StayListingFields({
               onChange(stay.id, { pricePerNight: event.target.value })
             }
             required
+          />
+        </div>
+
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor={`stay-${stay.id}-address`}>
+            Address{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional — places the stay on the map)
+            </span>
+          </Label>
+          <AddressAutocomplete
+            id={`stay-${stay.id}-address`}
+            placeholder="Start typing an address…"
+            value={stay.address ?? ""}
+            hasSelection={
+              typeof stay.latitude === "number" &&
+              typeof stay.longitude === "number"
+            }
+            selectionCaption={[stay.city, stay.region]
+              .filter(Boolean)
+              .join(", ")}
+            onInputChange={(text) =>
+              onChange(stay.id, {
+                address: text,
+                latitude: undefined,
+                longitude: undefined,
+                placeName: undefined,
+                city: undefined,
+                region: undefined,
+              })
+            }
+            onSelect={(suggestion) =>
+              onChange(stay.id, {
+                address: suggestion.formattedAddress,
+                latitude: suggestion.latitude,
+                longitude: suggestion.longitude,
+                placeName: suggestion.placeName,
+                city: suggestion.city,
+                region: suggestion.region,
+              })
+            }
+            onClear={() =>
+              onChange(stay.id, {
+                address: "",
+                latitude: undefined,
+                longitude: undefined,
+                placeName: undefined,
+                city: undefined,
+                region: undefined,
+              })
+            }
           />
         </div>
 
