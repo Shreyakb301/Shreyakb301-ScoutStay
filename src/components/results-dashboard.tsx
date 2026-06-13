@@ -16,6 +16,7 @@ import { AirportIntelligence } from "@/components/airport-intelligence";
 import { CategoryChart } from "@/components/category-chart";
 import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
 import { ExportReportButton } from "@/components/export-report-button";
+import { SaveComparisonButton } from "@/components/save-comparison-button";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
 import { PreferencePanel } from "@/components/preference-panel";
@@ -49,10 +50,11 @@ import type { ComparisonRequest } from "@/lib/types";
 
 interface ResultsDashboardProps {
   request: ComparisonRequest;
+  initialWeights?: ScoreWeights;
   onStartOver: () => void;
 }
 
-export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps) {
+export function ResultsDashboard({ request, initialWeights, onStartOver }: ResultsDashboardProps) {
   // Resolve coordinates (stored or geocoded), then pull real OpenStreetMap
   // nearby-place signals for each located stay. Scores start from the mock
   // engine and refine in place once the live data lands.
@@ -69,7 +71,7 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
   } = useAirportIntelligence(locations);
 
   const [weights, setWeights] = useState<ScoreWeights>(
-    () => TRAVELER_DEFAULT_WEIGHTS[request.travelerType]
+    () => initialWeights ?? TRAVELER_DEFAULT_WEIGHTS[request.travelerType]
   );
 
   const result = useMemo(
@@ -93,6 +95,11 @@ export function ResultsDashboard({ request, onStartOver }: ResultsDashboardProps
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <SaveComparisonButton
+            request={request}
+            weights={weights}
+            winnerName={result.bestOverall.stay.name}
+          />
           <ExportReportButton result={result} weights={weights} />
           <Button variant="outline" size="sm" onClick={onStartOver}>
             <RotateCcw className="size-4" />

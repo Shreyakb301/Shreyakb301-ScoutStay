@@ -6,9 +6,11 @@ import { Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ResultsDashboard } from "@/components/results-dashboard";
+import { SavedComparisonsList } from "@/components/saved-comparisons-list";
 import { StayListingFields } from "@/components/stay-listing-fields";
 import { TravelerTypeSelector } from "@/components/traveler-type-selector";
 import { SAMPLE_STAYS } from "@/lib/mock-data";
+import type { ScoreWeights } from "@/lib/scoring";
 import {
   MAX_STAYS,
   MIN_STAYS,
@@ -39,6 +41,7 @@ export function CompareForm() {
   ]);
   const [submitted, setSubmitted] =
     useState<ComparisonRequest | null>(null);
+  const [loadedWeights, setLoadedWeights] = useState<ScoreWeights | null>(null);
 
   const updateStay = (
     id: string,
@@ -61,6 +64,14 @@ export function CompareForm() {
     );
   };
 
+  const handleLoad = (request: ComparisonRequest, weights: ScoreWeights) => {
+    setTravelerType(request.travelerType);
+    setStays(request.stays);
+    setLoadedWeights(weights);
+    setSubmitted(request);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const fillWithSampleData = () => {
     setTravelerType("couple");
     setStays(
@@ -80,13 +91,19 @@ export function CompareForm() {
     return (
       <ResultsDashboard
         request={submitted}
-        onStartOver={() => setSubmitted(null)}
+        initialWeights={loadedWeights ?? undefined}
+        onStartOver={() => {
+          setSubmitted(null);
+          setLoadedWeights(null);
+        }}
       />
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8">
+      <SavedComparisonsList onLoad={handleLoad} />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
@@ -162,6 +179,7 @@ export function CompareForm() {
           </p>
         )}
       </section>
-    </form>
+      </form>
+    </div>
   );
 }
