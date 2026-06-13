@@ -17,6 +17,7 @@ import { CategoryChart } from "@/components/category-chart";
 import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
 import { ExportReportButton } from "@/components/export-report-button";
 import { SaveComparisonButton } from "@/components/save-comparison-button";
+import { ShareComparisonButton } from "@/components/share-comparison-button";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
 import { PreferencePanel } from "@/components/preference-panel";
@@ -99,6 +100,13 @@ export function ResultsDashboard({ request, initialWeights, onStartOver }: Resul
             request={request}
             weights={weights}
             winnerName={result.bestOverall.stay.name}
+          />
+          <ShareComparisonButton
+            state={{
+              travelerType: request.travelerType,
+              stays: request.stays,
+              weights,
+            }}
           />
           <ExportReportButton result={result} weights={weights} />
           <Button variant="outline" size="sm" onClick={onStartOver}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,10 @@ import { StayListingFields } from "@/components/stay-listing-fields";
 import { TravelerTypeSelector } from "@/components/traveler-type-selector";
 import { SAMPLE_STAYS } from "@/lib/mock-data";
 import type { ScoreWeights } from "@/lib/scoring";
+import {
+  readSharedComparison,
+  toComparisonRequest,
+} from "@/lib/share-comparison";
 import {
   MAX_STAYS,
   MIN_STAYS,
@@ -42,6 +46,7 @@ export function CompareForm() {
   const [submitted, setSubmitted] =
     useState<ComparisonRequest | null>(null);
   const [loadedWeights, setLoadedWeights] = useState<ScoreWeights | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   const updateStay = (
     id: string,
@@ -72,6 +77,31 @@ export function CompareForm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Restore a shared comparison from ?data=… on first mount. Decoding is
+  // async (gzip), and malformed/invalid tokens resolve to null, leaving the
+  // empty form untouched.
+  useEffect(() => {
+    if (!window.location.search.includes("data=")) return;
+    let active = true;
+    setRestoring(true);
+    readSharedComparison(window.location.search)
+      .then((shared) => {
+        if (!active) return;
+        if (shared) {
+          setTravelerType(shared.travelerType);
+          setStays(shared.stays);
+          setLoadedWeights(shared.weights);
+          setSubmitted(toComparisonRequest(shared));
+        }
+      })
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const fillWithSampleData = () => {
     setTravelerType("couple");
     setStays(
@@ -97,6 +127,18 @@ export function CompareForm() {
           setLoadedWeights(null);
         }}
       />
+    );
+  }
+
+  if (restoring) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="h-8 w-2/3 animate-pulse rounded-md bg-muted" />
+        <div className="h-40 w-full animate-pulse rounded-xl bg-muted" />
+        <p className="text-center text-sm text-muted-foreground">
+          Loading shared comparison…
+        </p>
+      </div>
     );
   }
 
