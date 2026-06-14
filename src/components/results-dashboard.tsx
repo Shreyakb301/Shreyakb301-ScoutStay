@@ -21,7 +21,6 @@ import { SaveComparisonButton } from "@/components/save-comparison-button";
 import { ScoreCard } from "@/components/score-card";
 import { ShareComparisonButton } from "@/components/share-comparison-button";
 import { TravelDecisionBrief } from "@/components/travel-decision-brief";
-import { TravelTimeline } from "@/components/travel-timeline";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { useAirportIntelligence } from "@/hooks/use-airport-intelligence";
 import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
@@ -182,26 +181,17 @@ export function ResultsDashboard({
         </div>
       </BriefingSection>
 
-      {/* ─── 02 TRAVEL TIMELINE ─────────────────────────────────── */}
-      <BriefingSection
-        code="02"
-        title="Travel timeline"
-        meta="Arrival → stay → return"
-      >
-        <TravelTimeline result={result} />
-      </BriefingSection>
-
-      {/* ─── 03 LOCATION ANALYSIS ───────────────────────────────── */}
-      <BriefingSection code="03" title="Location analysis">
+      {/* ─── 02 LOCATION ANALYSIS ───────────────────────────────── */}
+      <BriefingSection code="02" title="Location analysis">
         <div className="flex flex-col gap-4">
           <StayMap scoredStays={result.scoredStays} airports={airports} />
           <CategoryChart scoredStays={result.scoredStays} />
         </div>
       </BriefingSection>
 
-      {/* ─── 04 AIRPORT ACCESS ──────────────────────────────────── */}
+      {/* ─── 03 AIRPORT ACCESS ──────────────────────────────────── */}
       <BriefingSection
-        code="04"
+        code="03"
         title="Airport access"
         meta={bestIata ? `Best: ${bestIata}` : undefined}
       >
@@ -213,8 +203,8 @@ export function ResultsDashboard({
         />
       </BriefingSection>
 
-      {/* ─── 05 NEIGHBORHOOD ANALYSIS ───────────────────────────── */}
-      <BriefingSection code="05" title="Neighborhood analysis">
+      {/* ─── 04 NEIGHBORHOOD ANALYSIS ───────────────────────────── */}
+      <BriefingSection code="04" title="Neighborhood analysis">
         <NearbyIntelligence
           scoredStays={result.scoredStays}
           errors={nearbyErrors}
@@ -222,17 +212,17 @@ export function ResultsDashboard({
         />
       </BriefingSection>
 
-      {/* ─── 06 RISK ASSESSMENT ─────────────────────────────────── */}
-      <BriefingSection code="06" title="Risk assessment">
+      {/* ─── 05 RISK ASSESSMENT ─────────────────────────────────── */}
+      <BriefingSection code="05" title="Risk assessment">
         <div className="flex flex-col gap-6">
           <RiskAssessment result={result} weights={weights} />
           <ExplainableScoreBreakdown scoredStays={result.scoredStays} />
         </div>
       </BriefingSection>
 
-      {/* ─── 07 RECOMMENDED STAY ────────────────────────────────── */}
+      {/* ─── 06 RECOMMENDED STAY ────────────────────────────────── */}
       <BriefingSection
-        code="07"
+        code="06"
         title="Recommended stay"
         meta={<StatusTag status="go">Primary</StatusTag>}
       >
@@ -245,9 +235,9 @@ export function ResultsDashboard({
         </div>
       </BriefingSection>
 
-      {/* ─── 08 ALTERNATIVE OPTIONS ─────────────────────────────── */}
+      {/* ─── 07 ALTERNATIVE OPTIONS ─────────────────────────────── */}
       <BriefingSection
-        code="08"
+        code="07"
         title="Alternative options"
         meta={`${String(alternatives.length).padStart(2, "0")} on file`}
       >
