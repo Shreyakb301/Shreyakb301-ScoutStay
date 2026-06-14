@@ -1,12 +1,4 @@
-import { Lightbulb } from "lucide-react";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Panel, StatusTag } from "@/components/briefing";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { bestAirportStay } from "@/components/airport-intelligence";
 import type { AirportIntelligence } from "@/lib/airport-intelligence";
@@ -15,10 +7,6 @@ import type { ComparisonResult, ScoredStay } from "@/lib/scoring";
 
 const CONFIDENCE_RANK = { High: 0, Medium: 1, Low: 2 } as const;
 
-/**
- * The strongest reasons behind the top pick, phrased for prose. Prefers
- * high-confidence (real-data) explanations, then higher scores.
- */
 function topReasons(entry: ScoredStay, isBestConnected: boolean): string[] {
   return entry.explanations
     .filter(
@@ -51,7 +39,6 @@ export function RecommendationPanel({
   airports = {},
 }: {
   result: ComparisonResult;
-  /** Nearest-airport data keyed by stay id, when available. */
   airports?: Record<string, AirportIntelligence | null>;
 }) {
   const { bestOverall, biggestRisk, scoredStays } = result;
@@ -68,61 +55,63 @@ export function RecommendationPanel({
   );
 
   return (
-    <Card className="border-primary/30 bg-primary/5">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Lightbulb className="size-4" />
+    <Panel
+      title="Primary recommendation"
+      aside={<StatusTag status="go">Cleared</StatusTag>}
+      bodyClassName="flex flex-col gap-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div className="flex items-baseline gap-3">
+          <h3 className="text-xl font-bold tracking-tight">
+            {bestOverall.stay.name}
+          </h3>
+          <span className="data text-xl font-bold">
+            {bestOverall.overallScore}
+            <span className="text-sm font-normal text-muted-foreground">
+              /100
+            </span>
           </span>
-          <div>
-            <CardTitle>Our recommendation</CardTitle>
-            <CardDescription>
-              Based on your {travelerLabel} trip priorities
-            </CardDescription>
-          </div>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm leading-relaxed">
+        <VerdictBadge verdict={bestOverall.verdict} />
+      </div>
+
+      <div className="flex flex-col gap-3 text-sm leading-relaxed">
         <p>
-          <span className="font-semibold">{bestOverall.stay.name}</span> is your
-          strongest pick at{" "}
-          <span className="font-semibold tabular-nums">
-            {bestOverall.overallScore}/100
-          </span>{" "}
-          <VerdictBadge verdict={bestOverall.verdict} className="align-middle" />
-          {" — "}
+          Recommended for your {travelerLabel} profile —{" "}
           {reasons.length > 0
-            ? `it ranks first because it has ${joinProse(reasons)}`
-            : "it's the best overall fit"}
-          , making it the strongest match for a {travelerLabel} trip.
+            ? `it leads the manifest on ${joinProse(reasons)}`
+            : "it is the strongest overall fit"}
+          .
         </p>
         {bestAirport && (
           <p>
-            Airport access: about{" "}
-            <span className="font-medium">
-              {bestAirport.driveMinutes} min ({bestAirport.distanceKm} km)
+            <span className="eyebrow">Transfer</span>{" "}
+            <span className="data">
+              {bestAirport.driveMinutes} min / {bestAirport.distanceKm} km
             </span>{" "}
             to {bestAirport.airport.name}
             {bestAirport.airport.iata ? ` (${bestAirport.airport.iata})` : ""}.
             {bestConnected && bestConnected.stay.id !== bestOverall.stay.id
-              ? ` If a quick transfer matters most, ${bestConnected.stay.name} is your best-connected stay (~${airports[bestConnected.stay.id]?.driveMinutes} min).`
-              : " That's also the shortest airport transfer of your shortlist."}
+              ? ` Fastest transfer on the shortlist is ${bestConnected.stay.name} (~${airports[bestConnected.stay.id]?.driveMinutes} min).`
+              : " Shortest transfer on the shortlist."}
           </p>
         )}
         {runnerUp && runnerUp.stay.id !== bestOverall.stay.id && (
-          <p>
-            <span className="font-medium">{runnerUp.stay.name}</span> is a solid
-            backup at {runnerUp.overallScore}/100 if your first choice books out.
+          <p className="text-muted-foreground">
+            Fallback option: <span className="font-medium text-foreground">{runnerUp.stay.name}</span>{" "}
+            at <span className="data">{runnerUp.overallScore}</span> if the
+            primary books out.
           </p>
         )}
         {!sameStay && (
           <p className="text-muted-foreground">
-            Watch out for <span className="font-medium text-foreground">{biggestRisk.stay.name}</span>{" "}
-            ({biggestRisk.overallScore}/100) — it scored lowest for this trip:{" "}
-            {biggestRisk.cons[0]?.toLowerCase() ?? "it trails in several categories"}.
+            Lowest-rated:{" "}
+            <span className="font-medium text-foreground">{biggestRisk.stay.name}</span>{" "}
+            (<span className="data">{biggestRisk.overallScore}</span>) —{" "}
+            {biggestRisk.cons[0]?.toLowerCase() ?? "trails across several categories"}.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }

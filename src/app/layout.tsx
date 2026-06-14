@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "StayCompare — Compare vacation stays side by side",
-    template: "%s | StayCompare",
+    default: "ScoutStay — Travel intelligence briefings",
+    template: "%s — ScoutStay",
   },
   description:
-    "Paste 2–5 vacation rental or hotel listings and compare them based on what matters for your kind of trip.",
+    "Operational briefings for your shortlist of stays — location, airport access, neighborhood, and risk, scored against your mission profile.",
 };
 
 export default function RootLayout({

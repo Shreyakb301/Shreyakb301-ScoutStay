@@ -53,8 +53,8 @@ function generateTitle(request: ComparisonRequest, winnerName: string): string {
     TRAVELER_TYPES.find((t) => t.id === request.travelerType)?.label ??
     request.travelerType;
   return others === 1
-    ? `${winnerName} vs 1 other · ${travelerLabel}`
-    : `${winnerName} vs ${others} others · ${travelerLabel}`;
+    ? `${winnerName} vs 1 other — ${travelerLabel}`
+    : `${winnerName} vs ${others} others — ${travelerLabel}`;
 }
 
 export function saveComparison(

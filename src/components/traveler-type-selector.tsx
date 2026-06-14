@@ -1,7 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { TRAVELER_TYPES } from "@/lib/mock-data";
 import type { TravelerTypeId } from "@/lib/types";
@@ -24,48 +22,48 @@ export function TravelerTypeSelector({
       {TRAVELER_TYPES.map((type) => {
         const selected = value === type.id;
         return (
-          <Card
+          <button
             key={type.id}
+            type="button"
             role="radio"
             aria-checked={selected}
-            tabIndex={0}
             onClick={() => onChange(type.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onChange(type.id);
-              }
-            }}
             className={cn(
-              "cursor-pointer transition-colors hover:border-primary/50",
-              selected && "border-primary ring-1 ring-primary"
+              "flex flex-col gap-3 border bg-card p-4 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              selected
+                ? "border-foreground ring-1 ring-foreground"
+                : "border-border hover:border-foreground/40"
             )}
           >
-            <CardContent className="flex flex-col gap-2 p-4">
-              <div className="flex items-center gap-2">
-                <span aria-hidden className="text-2xl">
-                  {type.icon}
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "data flex h-8 min-w-12 items-center justify-center border px-1.5 text-xs font-bold tracking-wider",
+                  selected
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border text-foreground"
+                )}
+              >
+                {type.code}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold leading-tight">{type.label}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {type.description}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {type.priorities.map((priority) => (
+                <span
+                  key={priority}
+                  className="eyebrow border border-border px-1.5 py-0.5"
+                >
+                  {priority}
                 </span>
-                <div>
-                  <p className="font-medium leading-tight">{type.label}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {type.description}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {type.priorities.map((priority) => (
-                  <Badge
-                    key={priority}
-                    variant={selected ? "default" : "secondary"}
-                    className="text-xs font-normal"
-                  >
-                    {priority}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              ))}
+            </div>
+          </button>
         );
       })}
     </div>

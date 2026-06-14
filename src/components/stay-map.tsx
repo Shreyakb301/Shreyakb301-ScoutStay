@@ -6,13 +6,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPinOff } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Panel } from "@/components/briefing";
 import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
 import { PLATFORM_OPTIONS } from "@/lib/mock-data";
 import type {
@@ -52,12 +46,12 @@ function markerIcon(rank: number, color: string): L.DivIcon {
     className: "",
     html:
       `<div style="display:flex;align-items:center;justify-content:center;` +
-      `width:28px;height:28px;border-radius:9999px;background:${color};` +
-      `color:white;font-size:13px;font-weight:700;border:2px solid white;` +
-      `box-shadow:0 2px 6px rgba(0,0,0,0.35)">${rank}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+      `width:26px;height:26px;border-radius:2px;background:${color};` +
+      `color:white;font-size:13px;font-weight:700;font-family:var(--font-mono),monospace;` +
+      `border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)">${rank}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -15],
   });
 }
 
@@ -67,18 +61,19 @@ interface AirportMarkerData {
   stays: { name: string; distanceKm: number; driveMinutes: number }[];
 }
 
-/** Square slate marker with a plane glyph — visually distinct from the round, numbered stay markers. */
-function airportIcon(): L.DivIcon {
+/** Dark IATA-code marker — visually distinct from the numbered stay markers. */
+function airportIcon(label: string): L.DivIcon {
   return L.divIcon({
     className: "",
     html:
       `<div style="display:flex;align-items:center;justify-content:center;` +
-      `width:30px;height:30px;border-radius:8px;background:#0f172a;` +
-      `color:white;font-size:15px;border:2px solid white;` +
-      `box-shadow:0 2px 6px rgba(0,0,0,0.35)">✈</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -17],
+      `min-width:34px;height:22px;padding:0 4px;border-radius:2px;background:#11161f;` +
+      `color:white;font-size:11px;font-weight:700;letter-spacing:0.08em;` +
+      `font-family:var(--font-mono),monospace;border:2px solid white;` +
+      `box-shadow:0 1px 4px rgba(0,0,0,0.4)">${label}</div>`,
+    iconSize: [38, 22],
+    iconAnchor: [19, 11],
+    popupAnchor: [0, -13],
   });
 }
 
@@ -164,22 +159,22 @@ export function StayMap({
   const failedStays = scoredStays.filter((entry) => errors[entry.stay.id]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Location intelligence</CardTitle>
-        <CardDescription>
-          Your shortlist on the map — click a marker for the stay&apos;s score,
-          platform, and price.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <Panel
+      title="Geospatial plot"
+      aside={
+        <span className="eyebrow">
+          {locatedStays.length} located / {airportMarkers.length} apt
+        </span>
+      }
+      bodyClassName="flex flex-col gap-3"
+    >
         {staysWithAddress.length === 0 ? (
           <EmptyState
             title="No addresses yet"
             body="Add an address to your stays in the form to see them placed on the map."
           />
         ) : loading ? (
-          <div className="h-80 w-full animate-pulse rounded-lg bg-muted sm:h-96" />
+          <div className="h-80 w-full animate-pulse bg-muted sm:h-96" />
         ) : locatedStays.length === 0 ? (
           <EmptyState
             title="Couldn't place your stays"
@@ -187,7 +182,7 @@ export function StayMap({
           />
         ) : (
           // z-0 keeps Leaflet's internal panes below the sticky site header.
-          <div className="relative z-0 h-80 w-full overflow-hidden rounded-lg border sm:h-96">
+          <div className="relative z-0 h-80 w-full overflow-hidden border border-border sm:h-96">
             <MapContainer
               center={positions[0]}
               zoom={11}
@@ -213,8 +208,8 @@ export function StayMap({
                       <p className="flex justify-between gap-3 text-xs">
                         <span className="text-muted-foreground">Score</span>
                         <span className="font-medium">
-                          {located.entry.overallScore}/100 ·{" "}
-                          {located.entry.verdict}
+                          {located.entry.overallScore}/100 (
+                          {located.entry.verdict})
                         </span>
                       </p>
                       <p className="flex justify-between gap-3 text-xs">
@@ -269,7 +264,7 @@ export function StayMap({
                 <Marker
                   key={marker.airport.id}
                   position={[marker.airport.latitude, marker.airport.longitude]}
-                  icon={airportIcon()}
+                  icon={airportIcon(marker.airport.iata ?? "APT")}
                 >
                   <Popup offset={[0, -8]}>
                     <div className="min-w-44 text-sm">
@@ -290,7 +285,7 @@ export function StayMap({
                             From {stay.name}
                           </span>
                           <span className="font-medium tabular-nums">
-                            {stay.distanceKm} km · ~{stay.driveMinutes} min
+                            {stay.distanceKm} km / ~{stay.driveMinutes} min
                           </span>
                         </p>
                       ))}
@@ -314,14 +309,13 @@ export function StayMap({
             .
           </p>
         )}
-      </CardContent>
-    </Card>
+    </Panel>
   );
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="flex h-60 flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 text-center sm:h-72">
+    <div className="flex h-60 flex-col items-center justify-center gap-2 border border-dashed border-border px-6 text-center sm:h-72">
       <MapPinOff className="size-6 text-muted-foreground" />
       <p className="font-medium">{title}</p>
       <p className="max-w-md text-sm text-muted-foreground">{body}</p>

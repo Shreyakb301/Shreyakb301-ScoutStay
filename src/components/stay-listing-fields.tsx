@@ -40,8 +40,10 @@ export function StayListingFields({
 }: StayListingFieldsProps) {
   return (
     <Card>
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle className="text-base">Stay {index + 1}</CardTitle>
+      <CardHeader className="flex items-center justify-between border-b border-border pb-3">
+        <CardTitle className="data text-sm uppercase tracking-[0.12em]">
+          Stay {String(index + 1).padStart(2, "0")}
+        </CardTitle>
         {canRemove && (
           <Button
             type="button"

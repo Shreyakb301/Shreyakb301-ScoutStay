@@ -11,13 +11,7 @@ import {
   YAxis,
 } from "recharts";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Panel } from "@/components/briefing";
 import {
   CATEGORY_LABELS,
   type CategoryId,
@@ -55,14 +49,7 @@ export function CategoryChart({ scoredStays }: { scoredStays: ScoredStay[] }) {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Category comparison</CardTitle>
-        <CardDescription>
-          How each stay scores across every category, side by side.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Panel title="Category profile">
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
@@ -83,7 +70,7 @@ export function CategoryChart({ scoredStays }: { scoredStays: ScoredStay[] }) {
                 contentStyle={{
                   backgroundColor: "var(--popover)",
                   borderColor: "var(--border)",
-                  borderRadius: "0.5rem",
+                  borderRadius: "2px",
                   fontSize: "0.8rem",
                 }}
               />
@@ -94,14 +81,13 @@ export function CategoryChart({ scoredStays }: { scoredStays: ScoredStay[] }) {
                   dataKey={entry.stay.id}
                   name={entry.stay.name}
                   fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  radius={[3, 3, 0, 0]}
+                  radius={[0, 0, 0, 0]}
                   maxBarSize={28}
                 />
               ))}
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </CardContent>
-    </Card>
+    </Panel>
   );
 }

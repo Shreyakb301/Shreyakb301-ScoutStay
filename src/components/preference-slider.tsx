@@ -20,12 +20,10 @@ export function PreferenceSlider({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor={id} className="text-sm font-normal">
+        <Label htmlFor={id} className="eyebrow text-foreground">
           {label}
         </Label>
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {value}
-        </span>
+        <span className="data text-sm font-semibold">{value}</span>
       </div>
       <Slider
         id={id}

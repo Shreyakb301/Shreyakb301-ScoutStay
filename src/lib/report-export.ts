@@ -37,8 +37,8 @@ function stayDetail(entry: ScoredStay): string[] {
   );
   lines.push("");
   lines.push(
-    `${platformLabel(entry.stay.platform)} · $${Number(entry.stay.pricePerNight) || 0}/night` +
-      (entry.stay.address ? ` · ${entry.stay.address}` : "")
+    `${platformLabel(entry.stay.platform)} — $${Number(entry.stay.pricePerNight) || 0}/night` +
+      (entry.stay.address ? ` — ${entry.stay.address}` : "")
   );
   lines.push("");
   for (const category of CATEGORY_ORDER) {
@@ -81,7 +81,7 @@ export function buildMarkdownReport(
   lines.push("# ScoutStay travel report");
   lines.push("");
   lines.push(
-    `_Generated ${date} · ${travelerLabel} trip · ${result.scoredStays.length} stays compared_`
+    `_Generated ${date} — ${travelerLabel} trip — ${result.scoredStays.length} stays compared_`
   );
   lines.push("");
 
@@ -141,7 +141,7 @@ export function buildMarkdownReport(
   }
   lines.push("");
   lines.push(
-    "_Scores 0–100, higher is better. Location data from OpenStreetMap · scoutstay_"
+    "_Scores 0–100, higher is better. Location data from OpenStreetMap — scoutstay_"
   );
   lines.push("");
 

@@ -3,18 +3,18 @@ import type { Metadata } from "next";
 import { CompareForm } from "@/components/compare-form";
 
 export const metadata: Metadata = {
-  title: "Compare stays",
+  title: "New briefing",
 };
 
 export default function ComparePage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Set up your comparison
+    <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mb-8 border-b-4 border-foreground pb-5">
+        <h1 className="text-4xl font-bold uppercase tracking-tight">
+          New briefing
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Tell us about your trip, then add the stays you&apos;re torn
+          Declare the mission profile, then file the stays you&apos;re deciding
           between.
         </p>
       </div>

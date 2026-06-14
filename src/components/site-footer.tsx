@@ -1,9 +1,11 @@
 export function SiteFooter() {
   return (
-    <footer className="border-t">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} StayCompare</p>
-        <p>Compare stays. Book with confidence.</p>
+    <footer className="border-t border-foreground">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <p className="eyebrow">
+          © {new Date().getFullYear()} ScoutStay
+        </p>
+        <p className="eyebrow">Location data — OpenStreetMap</p>
       </div>
     </footer>
   );

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { ResultsDashboard } from "@/components/results-dashboard";
 import { SavedComparisonsList } from "@/components/saved-comparisons-list";
 import { StayListingFields } from "@/components/stay-listing-fields";
@@ -133,11 +132,9 @@ export function CompareForm() {
   if (restoring) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="h-8 w-2/3 animate-pulse rounded-md bg-muted" />
-        <div className="h-40 w-full animate-pulse rounded-xl bg-muted" />
-        <p className="text-center text-sm text-muted-foreground">
-          Loading shared comparison…
-        </p>
+        <div className="h-8 w-2/3 animate-pulse bg-muted" />
+        <div className="h-40 w-full animate-pulse bg-muted" />
+        <p className="eyebrow text-center">Loading shared briefing…</p>
       </div>
     );
   }
@@ -147,15 +144,12 @@ export function CompareForm() {
       <SavedComparisonsList onLoad={handleLoad} />
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">
-              1. Who&apos;s traveling?
+        <div className="flex items-end justify-between gap-4 border-b-2 border-foreground pb-2">
+          <div className="flex items-baseline gap-3">
+            <span className="data text-xs font-semibold text-signal">01</span>
+            <h2 className="text-lg font-bold uppercase tracking-[0.12em]">
+              Traveler profile
             </h2>
-            <p className="text-sm text-muted-foreground">
-              We&apos;ll weigh the comparison toward what matters for your
-              trip.
-            </p>
           </div>
           <Button
             type="button"
@@ -164,25 +158,34 @@ export function CompareForm() {
             onClick={fillWithSampleData}
           >
             <Sparkles className="size-4" />
-            Fill with sample data
+            Sample data
           </Button>
         </div>
+        <p className="text-sm text-muted-foreground">
+          We&apos;ll weight the assessment toward what matters for your trip.
+        </p>
         <TravelerTypeSelector
           value={travelerType}
           onChange={setTravelerType}
         />
       </section>
 
-      <Separator />
-
       <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">2. Add your stays</h2>
-          <p className="text-sm text-muted-foreground">
-            Add between {MIN_STAYS} and {MAX_STAYS} listings you&apos;re
-            deciding between.
-          </p>
+        <div className="flex items-end justify-between gap-4 border-b-2 border-foreground pb-2">
+          <div className="flex items-baseline gap-3">
+            <span className="data text-xs font-semibold text-signal">02</span>
+            <h2 className="text-lg font-bold uppercase tracking-[0.12em]">
+              Stay manifest
+            </h2>
+          </div>
+          <span className="eyebrow pb-0.5">
+            {stays.length}/{MAX_STAYS}
+          </span>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Add between {MIN_STAYS} and {MAX_STAYS} listings you&apos;re deciding
+          between.
+        </p>
 
         <div className="flex flex-col gap-4">
           {stays.map((stay, index) => (
@@ -209,11 +212,9 @@ export function CompareForm() {
         </Button>
       </section>
 
-      <Separator />
-
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3 border-t-2 border-foreground pt-6">
         <Button type="submit" size="lg" disabled={!travelerType}>
-          Compare these stays
+          Generate briefing
         </Button>
         {!travelerType && (
           <p className="text-center text-sm text-muted-foreground">

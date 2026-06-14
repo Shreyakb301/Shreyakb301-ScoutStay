@@ -1,12 +1,4 @@
-import { Minus, Plus } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Panel } from "@/components/briefing";
 import {
   VerdictBadge,
   scoreBarClass,
@@ -15,18 +7,25 @@ import {
 import type { ConfidenceLevel, ScoredStay, ScoreExplanation } from "@/lib/scoring";
 import { cn } from "@/lib/utils";
 
-const CONFIDENCE_STYLES: Record<ConfidenceLevel, string> = {
-  High: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  Medium:
-    "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  Low: "border-border bg-muted text-muted-foreground",
+const CONFIDENCE_CODE: Record<ConfidenceLevel, string> = {
+  High: "HI",
+  Medium: "MED",
+  Low: "LO",
+};
+
+const CONFIDENCE_CLASSES: Record<ConfidenceLevel, string> = {
+  High: "border-go/40 text-go",
+  Medium: "border-caution/50 text-caution",
+  Low: "border-border text-muted-foreground",
 };
 
 export function ConfidenceBadge({ level }: { level: ConfidenceLevel }) {
   return (
-    <Badge
-      variant="outline"
-      className={cn("text-[10px] font-medium", CONFIDENCE_STYLES[level])}
+    <span
+      className={cn(
+        "inline-flex items-center border px-1 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-[0.1em]",
+        CONFIDENCE_CLASSES[level]
+      )}
       title={`${level} confidence: ${
         level === "High"
           ? "based on real data"
@@ -35,20 +34,20 @@ export function ConfidenceBadge({ level }: { level: ConfidenceLevel }) {
             : "rough estimate only"
       }`}
     >
-      {level}
-    </Badge>
+      {CONFIDENCE_CODE[level]}
+    </span>
   );
 }
 
 function ExplanationRow({ explanation }: { explanation: ScoreExplanation }) {
   return (
-    <div className="rounded-lg border p-3">
+    <div className="border border-border p-3">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">{explanation.label}</span>
         <ConfidenceBadge level={explanation.confidence} />
         <span
           className={cn(
-            "ml-auto text-sm font-semibold tabular-nums",
+            "data ml-auto text-sm font-semibold",
             scoreTextClass(explanation.score)
           )}
         >
@@ -62,10 +61,10 @@ function ExplanationRow({ explanation }: { explanation: ScoreExplanation }) {
         aria-valuenow={explanation.score}
         aria-valuemin={0}
         aria-valuemax={100}
-        className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted"
+        className="mt-2 h-1 w-full overflow-hidden bg-muted"
       >
         <div
-          className={cn("h-full rounded-full", scoreBarClass(explanation.score))}
+          className={cn("h-full", scoreBarClass(explanation.score))}
           style={{ width: `${explanation.score}%` }}
         />
       </div>
@@ -77,13 +76,13 @@ function ExplanationRow({ explanation }: { explanation: ScoreExplanation }) {
         <ul className="mt-2 flex flex-col gap-1">
           {explanation.positives.map((signal) => (
             <li key={signal} className="flex items-start gap-1.5 text-xs">
-              <Plus className="mt-0.5 size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span className="mt-1 size-1 shrink-0 bg-go" aria-hidden />
               {signal}
             </li>
           ))}
           {explanation.negatives.map((signal) => (
             <li key={signal} className="flex items-start gap-1.5 text-xs">
-              <Minus className="mt-0.5 size-3 shrink-0 text-red-600 dark:text-red-400" />
+              <span className="mt-1 size-1 shrink-0 bg-nogo" aria-hidden />
               {signal}
             </li>
           ))}
@@ -95,34 +94,34 @@ function ExplanationRow({ explanation }: { explanation: ScoreExplanation }) {
 
 /** Full per-category reasoning for one stay. */
 export function ScoreExplanationCard({ entry }: { entry: ScoredStay }) {
+  const titleBar = (
+    <div className="flex items-center gap-2">
+      <span className="data text-foreground">
+        {String(entry.rank).padStart(2, "0")}
+      </span>
+      <span className="truncate text-foreground" title={entry.stay.name}>
+        {entry.stay.name}
+      </span>
+    </div>
+  );
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="truncate text-base" title={entry.stay.name}>
-            <span className="mr-2 font-mono text-sm text-muted-foreground">
-              #{entry.rank}
-            </span>
-            {entry.stay.name}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-lg font-bold tabular-nums",
-                scoreTextClass(entry.overallScore)
-              )}
-            >
-              {entry.overallScore}
-            </span>
-            <VerdictBadge verdict={entry.verdict} />
-          </div>
+    <Panel
+      title={titleBar}
+      titleClassName="text-sm font-semibold"
+      aside={
+        <div className="flex items-center gap-2">
+          <span className={cn("data text-base font-bold", scoreTextClass(entry.overallScore))}>
+            {entry.overallScore}
+          </span>
+          <VerdictBadge verdict={entry.verdict} />
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2.5">
-        {entry.explanations.map((explanation) => (
-          <ExplanationRow key={explanation.id} explanation={explanation} />
-        ))}
-      </CardContent>
-    </Card>
+      }
+      bodyClassName="flex flex-col gap-2.5"
+    >
+      {entry.explanations.map((explanation) => (
+        <ExplanationRow key={explanation.id} explanation={explanation} />
+      ))}
+    </Panel>
   );
 }

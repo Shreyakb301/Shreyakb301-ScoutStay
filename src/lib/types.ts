@@ -9,8 +9,8 @@ export interface TravelerType {
   id: TravelerTypeId;
   label: string;
   description: string;
-  /** Emoji used as a lightweight icon on the selector cards. */
-  icon: string;
+  /** Short operational passenger code, e.g. "SOLO", "DUO". */
+  code: string;
   /** Criteria this traveler type prioritizes when comparing stays. */
   priorities: string[];
 }
