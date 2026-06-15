@@ -17,6 +17,28 @@ export interface TravelerType {
 
 export type Platform = "airbnb" | "vrbo" | "booking" | "hotel" | "other";
 
+/** Amenities/facilities a stay may include (Airbnb-style). */
+export type FacilityId =
+  | "wifi"
+  | "security-cameras"
+  | "washer-dryer"
+  | "pool"
+  | "gym"
+  | "workspace"
+  | "air-conditioning"
+  | "pet-friendly"
+  | "kitchen"
+  | "free-parking"
+  | "self-check-in"
+  | "heating"
+  | "hot-tub"
+  | "balcony-patio"
+  | "dedicated-entrance"
+  | "smoke-alarm"
+  | "carbon-monoxide-alarm"
+  | "first-aid-kit"
+  | "fire-extinguisher";
+
 export interface StayListing {
   /** Client-generated id used as the React key. */
   id: string;
@@ -35,11 +57,93 @@ export interface StayListing {
   region?: string;
   /** Optional free-text notes: review snippets, location details, amenities. */
   notes?: string;
+  /** Selected amenities/facilities for this stay. */
+  facilities?: FacilityId[];
+
+  /* --- Evidence sources for the RAG stay-match engine (all optional) --- */
+  /** Full listing description / "about this space" text. */
+  listingDescription?: string;
+  /** Pasted guest reviews. */
+  reviewText?: string;
+  /** House rules text. */
+  houseRulesText?: string;
+  /** Free-text amenities blurb (in addition to the structured facilities). */
+  amenitiesText?: string;
+  bedrooms?: number;
+  beds?: number;
+  bathrooms?: number;
+  maxGuests?: number;
+  /** Overall rating, 0–5. */
+  rating?: number;
+  reviewCount?: number;
+  squareFeet?: number;
+}
+
+/** Purpose of the trip, used to weight the evidence match. */
+export type TripPurpose =
+  | "leisure"
+  | "business"
+  | "family"
+  | "remote-work"
+  | "event"
+  | "other";
+
+/**
+ * What the traveler actually needs. Drives the Evidence Based Stay Match:
+ * boolean needs and numeric thresholds are checked structurally; the free-text
+ * rules become retrieval queries against each stay's evidence.
+ */
+export interface UserTripProfile {
+  tripPurpose: TripPurpose;
+  travelerCount: number;
+  needsTransit: boolean;
+  needsQuiet: boolean;
+  needsWorkspace: boolean;
+  needsPool: boolean;
+  needsGym: boolean;
+  needsParking: boolean;
+  needsPetFriendly: boolean;
+  lateArrival: boolean;
+  mustHaves: string[];
+  dealBreakers: string[];
+  niceToHaves: string[];
+  plannedDestinations: string[];
+  minimumBeds: number;
+  minimumBathrooms: number;
+  minimumRating: number;
+  maxAirportTransferMinutes: number;
+}
+
+export function createDefaultUserTripProfile(): UserTripProfile {
+  return {
+    tripPurpose: "leisure",
+    travelerCount: 2,
+    needsTransit: false,
+    needsQuiet: false,
+    needsWorkspace: false,
+    needsPool: false,
+    needsGym: false,
+    needsParking: false,
+    needsPetFriendly: false,
+    lateArrival: false,
+    mustHaves: [],
+    dealBreakers: [],
+    niceToHaves: [],
+    plannedDestinations: [],
+    minimumBeds: 0,
+    minimumBathrooms: 0,
+    minimumRating: 0,
+    maxAirportTransferMinutes: 0,
+  };
 }
 
 export interface ComparisonRequest {
   travelerType: TravelerTypeId;
   stays: StayListing[];
+  /** Optional guided-intake context. Scoring uses travelerType; this is extra. */
+  tripContext?: import("@/lib/trip-intake").TripContext;
+  /** Optional explicit trip needs for the evidence stay-match engine. */
+  tripProfile?: UserTripProfile;
 }
 
 export const MIN_STAYS = 2;

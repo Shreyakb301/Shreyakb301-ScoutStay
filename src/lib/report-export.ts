@@ -1,10 +1,15 @@
 /**
- * Shareable report export — builds a markdown report from the scored
+ * Shareable report export, builds a markdown report from the scored
  * comparison, entirely client-side. The narrative parts reuse the
  * decision-brief generator so the export always matches the dashboard.
  */
 
 import { buildDecisionBrief } from "@/lib/decision-brief";
+import {
+  facilityLabel,
+  getFacilitiesComparisonSummary,
+  getFacilitiesForStay,
+} from "@/lib/facilities";
 import { PLATFORM_OPTIONS, TRAVELER_TYPES } from "@/lib/mock-data";
 import {
   CATEGORY_LABELS,
@@ -13,6 +18,8 @@ import {
   type ScoredStay,
   type ScoreWeights,
 } from "@/lib/scoring";
+import { buildStayMatch } from "@/lib/stay-match-rag";
+import type { UserTripProfile } from "@/lib/types";
 
 const CATEGORY_ORDER: CategoryId[] = [
   "safetyScore",
@@ -33,12 +40,12 @@ function platformLabel(value: string): string {
 function stayDetail(entry: ScoredStay): string[] {
   const lines: string[] = [];
   lines.push(
-    `### ${entry.rank}. ${entry.stay.name} — ${entry.overallScore}/100 (${entry.verdict})`
+    `### ${entry.rank}. ${entry.stay.name}, ${entry.overallScore}/100 (${entry.verdict})`
   );
   lines.push("");
   lines.push(
-    `${platformLabel(entry.stay.platform)} — $${Number(entry.stay.pricePerNight) || 0}/night` +
-      (entry.stay.address ? ` — ${entry.stay.address}` : "")
+    `${platformLabel(entry.stay.platform)}, $${Number(entry.stay.pricePerNight) || 0}/night` +
+      (entry.stay.address ? `, ${entry.stay.address}` : "")
   );
   lines.push("");
   for (const category of CATEGORY_ORDER) {
@@ -59,7 +66,7 @@ function stayDetail(entry: ScoredStay): string[] {
       : "";
     lines.push(
       `- Airport: ${entry.airport.distanceKm} km (~${entry.airport.driveMinutes} min) to ` +
-        `${entry.airport.airport.name}${iata} — access score ${entry.airport.accessibilityScore}/100`
+        `${entry.airport.airport.name}${iata}, access score ${entry.airport.accessibilityScore}/100`
     );
   }
   lines.push("");
@@ -67,9 +74,68 @@ function stayDetail(entry: ScoredStay): string[] {
 }
 
 /** The full shareable report as markdown. */
+/** The Evidence Based Stay Match section, when a trip profile is supplied. */
+function evidenceMatchLines(
+  result: ComparisonResult,
+  profile: UserTripProfile
+): string[] {
+  const match = buildStayMatch(result.scoredStays, profile);
+  if (!match.hasProfile) return [];
+
+  const bestScore =
+    match.scores.find((s) => s.stayId === match.bestStayId)?.score ?? 0;
+  const lines: string[] = [];
+
+  lines.push("## Evidence based stay match");
+  lines.push("");
+  lines.push(
+    `**Best match:** ${match.bestStayName ?? "—"} (${bestScore}/100, confidence ${match.confidence}%)`
+  );
+  lines.push("");
+
+  if (match.whyItWins.length > 0) {
+    lines.push("### Why it wins");
+    lines.push("");
+    for (const reason of match.whyItWins) {
+      const quote = reason.evidence[0];
+      lines.push(
+        `- ${reason.claim}` +
+          (quote ? ` — _${quote.sourceLabel}: "${quote.text}"_` : "")
+      );
+    }
+    lines.push("");
+  }
+
+  if (match.dealbreakerWarnings.length > 0) {
+    lines.push("### Deal-breaker warnings");
+    lines.push("");
+    for (const warning of match.dealbreakerWarnings) {
+      lines.push(`- ${warning.stayName}: ${warning.rule}`);
+    }
+    lines.push("");
+  }
+
+  if (match.missingInfo.length > 0) {
+    lines.push("### Missing information");
+    lines.push("");
+    for (const item of match.missingInfo) lines.push(`- ${item}`);
+    lines.push("");
+  }
+
+  if (match.bestAlternativeName) {
+    const altScore =
+      match.scores.find((s) => s.stayId === match.bestAlternativeId)?.score ?? 0;
+    lines.push(`**Best alternative:** ${match.bestAlternativeName} (${altScore}/100)`);
+    lines.push("");
+  }
+
+  return lines;
+}
+
 export function buildMarkdownReport(
   result: ComparisonResult,
-  weights: ScoreWeights
+  weights: ScoreWeights,
+  profile?: UserTripProfile
 ): string {
   const brief = buildDecisionBrief(result, weights);
   const travelerLabel =
@@ -81,13 +147,13 @@ export function buildMarkdownReport(
   lines.push("# ScoutStay travel report");
   lines.push("");
   lines.push(
-    `_Generated ${date} — ${travelerLabel} trip — ${result.scoredStays.length} stays compared_`
+    `_Generated ${date}, ${travelerLabel} trip, ${result.scoredStays.length} stays compared_`
   );
   lines.push("");
 
   lines.push("## Decision brief");
   lines.push("");
-  lines.push(`**${brief.headline}** — ${brief.winnerScore}/100 (${brief.verdict})`);
+  lines.push(`**${brief.headline}**, ${brief.winnerScore}/100 (${brief.verdict})`);
   lines.push("");
   lines.push(brief.subheadline);
   lines.push("");
@@ -100,7 +166,7 @@ export function buildMarkdownReport(
     lines.push("### Best for");
     lines.push("");
     for (const item of brief.bestFor) {
-      lines.push(`- ${item.label} — ${item.stayName}`);
+      lines.push(`- ${item.label}, ${item.stayName}`);
     }
     lines.push("");
   }
@@ -132,6 +198,31 @@ export function buildMarkdownReport(
     lines.push(...stayDetail(entry));
   }
 
+  const stays = result.scoredStays.map((entry) => entry.stay);
+  const facilities = getFacilitiesComparisonSummary(stays);
+  if (facilities.anyFacilitiesEntered) {
+    lines.push("## Facilities");
+    lines.push("");
+    if (facilities.bestEquipped) {
+      lines.push(`Best equipped: ${facilities.bestEquipped.name}`);
+    }
+    if (facilities.mostMissing) {
+      lines.push(`Most gaps vs others: ${facilities.mostMissing.name}`);
+    }
+    lines.push("");
+    for (const stay of stays) {
+      const have = getFacilitiesForStay(stay).map(facilityLabel);
+      lines.push(
+        `- **${stay.name}** (${have.length}): ${have.length > 0 ? have.join(", ") : "none recorded"}`
+      );
+    }
+    lines.push("");
+  }
+
+  if (profile) {
+    lines.push(...evidenceMatchLines(result, profile));
+  }
+
   lines.push("## Preference weights");
   lines.push("");
   lines.push("| Category | Weight |");
@@ -141,7 +232,7 @@ export function buildMarkdownReport(
   }
   lines.push("");
   lines.push(
-    "_Scores 0–100, higher is better. Location data from OpenStreetMap — scoutstay_"
+    "_Scores 0–100, higher is better. Location data from OpenStreetMap, scoutstay_"
   );
   lines.push("");
 

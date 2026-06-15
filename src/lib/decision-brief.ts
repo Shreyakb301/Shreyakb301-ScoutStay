@@ -1,5 +1,5 @@
 /**
- * Travel Decision Brief — deterministic narrative built from the scoring
+ * Travel Decision Brief, deterministic narrative built from the scoring
  * result, user weights, nearby intelligence, and airport data. No AI: same
  * inputs always produce the same text.
  */
@@ -87,7 +87,7 @@ function headlineFor(winner: ScoredStay): string {
     case "Maybe":
       return `Leaning toward ${winner.stay.name}`;
     case "Avoid":
-      return `No standout — ${winner.stay.name} leads a weak field`;
+      return `No standout, ${winner.stay.name} leads a weak field`;
   }
 }
 
@@ -184,7 +184,7 @@ function tradeoffSection(winner: ScoredStay): BriefSection {
   return {
     id: "tradeoff",
     title: "The trade-off",
-    body: `${winner.stay.name}'s weakest spot is ${lower(weakest)} at ${winner.scores[weakest]}/100 — ${detail.charAt(0).toLowerCase()}${detail.slice(1)}${detail.endsWith(".") ? "" : "."}`,
+    body: `${winner.stay.name}'s weakest spot is ${lower(weakest)} at ${winner.scores[weakest]}/100, ${detail.charAt(0).toLowerCase()}${detail.slice(1)}${detail.endsWith(".") ? "" : "."}`,
   };
 }
 
@@ -208,7 +208,7 @@ function runnerUpSection(
             (category) =>
               `${lower(category)} (${runnerUp.scores[category]} vs ${winner.scores[category]})`
           )
-        )} — switch if that matters more to you.`
+        )}, switch if that matters more to you.`
       : `${runnerUp.stay.name} (#2 at ${runnerUp.overallScore}) doesn't beat ${winner.stay.name} in any category that carries real weight in your blend.`;
 
   return { id: "runnerUp", title: "The alternative", body };
@@ -253,7 +253,7 @@ function buildWarnings(result: ComparisonResult): string[] {
   for (const entry of result.scoredStays) {
     if (entry.verdict === "Avoid") {
       warnings.push(
-        `${entry.stay.name} lands at ${entry.overallScore}/100 — an Avoid for this trip.`
+        `${entry.stay.name} lands at ${entry.overallScore}/100, an Avoid for this trip.`
       );
     }
   }
@@ -266,14 +266,14 @@ function buildWarnings(result: ComparisonResult): string[] {
 
   if (winner.airport && winner.airport.distanceKm > 25) {
     warnings.push(
-      `Airport transfer from ${winner.stay.name} runs ~${winner.airport.driveMinutes} min — plan departures accordingly.`
+      `Airport transfer from ${winner.stay.name} runs ~${winner.airport.driveMinutes} min, plan departures accordingly.`
     );
   }
 
   const noData = result.scoredStays.filter((entry) => !entry.nearby);
   if (noData.length > 0) {
     warnings.push(
-      `${joinProse(noData.map((entry) => entry.stay.name))} ${noData.length === 1 ? "has" : "have"} no nearby data — location scores there are estimates.`
+      `${joinProse(noData.map((entry) => entry.stay.name))} ${noData.length === 1 ? "has" : "have"} no nearby data, location scores there are estimates.`
     );
   }
 
@@ -297,7 +297,7 @@ export function buildDecisionBrief(
         ? `, ${margin} point${margin === 1 ? "" : "s"} clear of ${runnerUp.stay.name}`
         : `, tied with ${runnerUp.stay.name}`
       : "") +
-    (reasons.length > 0 ? ` — it wins on ${joinProse(reasons)}.` : ".");
+    (reasons.length > 0 ? `, it wins on ${joinProse(reasons)}.` : ".");
 
   const sections: BriefSection[] = [preferencesSection(result, weights)];
   const nearby = nearbySection(winner);

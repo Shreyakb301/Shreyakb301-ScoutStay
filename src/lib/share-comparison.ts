@@ -9,19 +9,23 @@
  * raw ("r"), so decoding can dispatch without guessing.
  */
 
+import { ALL_FACILITY_IDS } from "@/lib/facilities";
 import { PLATFORM_OPTIONS, TRAVELER_TYPES } from "@/lib/mock-data";
 import type { CategoryId, ScoreWeights } from "@/lib/scoring";
 import type {
   ComparisonRequest,
+  FacilityId,
   Platform,
   StayListing,
   TravelerTypeId,
+  UserTripProfile,
 } from "@/lib/types";
 
 export interface ShareState {
   travelerType: TravelerTypeId;
   stays: StayListing[];
   weights: ScoreWeights;
+  tripProfile?: UserTripProfile;
 }
 
 /** The query parameter that carries the encoded state. */
@@ -58,6 +62,19 @@ interface CompactStay {
   c?: string;
   r?: string;
   no?: string;
+  fa?: string[];
+  /* RAG evidence fields */
+  ld?: string;
+  rv?: string;
+  hr?: string;
+  am?: string;
+  bd?: number;
+  be?: number;
+  ba?: number;
+  mg?: number;
+  rt?: number;
+  rc?: number;
+  sf?: number;
 }
 
 interface CompactState {
@@ -65,12 +82,15 @@ interface CompactState {
   t: TravelerTypeId;
   w: number[];
   s: CompactStay[];
+  /** Trip profile, stored as-is (gzip keeps it small). */
+  tp?: UserTripProfile;
 }
 
 const VALID_TRAVELERS = new Set<string>(TRAVELER_TYPES.map((type) => type.id));
 const VALID_PLATFORMS = new Set<string>(
   PLATFORM_OPTIONS.map((option) => option.value)
 );
+const VALID_FACILITIES = new Set<string>(ALL_FACILITY_IDS);
 
 // --- base64url helpers -----------------------------------------------------
 
@@ -143,8 +163,23 @@ function toCompact(state: ShareState): CompactState {
       if (stay.city) compact.c = stay.city;
       if (stay.region) compact.r = stay.region;
       if (stay.notes) compact.no = stay.notes;
+      if (stay.facilities && stay.facilities.length > 0) {
+        compact.fa = stay.facilities;
+      }
+      if (stay.listingDescription) compact.ld = stay.listingDescription;
+      if (stay.reviewText) compact.rv = stay.reviewText;
+      if (stay.houseRulesText) compact.hr = stay.houseRulesText;
+      if (stay.amenitiesText) compact.am = stay.amenitiesText;
+      if (typeof stay.bedrooms === "number") compact.bd = stay.bedrooms;
+      if (typeof stay.beds === "number") compact.be = stay.beds;
+      if (typeof stay.bathrooms === "number") compact.ba = stay.bathrooms;
+      if (typeof stay.maxGuests === "number") compact.mg = stay.maxGuests;
+      if (typeof stay.rating === "number") compact.rt = stay.rating;
+      if (typeof stay.reviewCount === "number") compact.rc = stay.reviewCount;
+      if (typeof stay.squareFeet === "number") compact.sf = stay.squareFeet;
       return compact;
     }),
+    ...(state.tripProfile ? { tp: state.tripProfile } : {}),
   };
 }
 
@@ -191,10 +226,33 @@ function fromCompact(compact: CompactState): ShareState {
     if (typeof item.c === "string") stay.city = item.c;
     if (typeof item.r === "string") stay.region = item.r;
     if (typeof item.no === "string") stay.notes = item.no;
+    if (Array.isArray(item.fa)) {
+      const facilities = item.fa.filter(
+        (id): id is FacilityId =>
+          typeof id === "string" && VALID_FACILITIES.has(id)
+      );
+      if (facilities.length > 0) stay.facilities = facilities;
+    }
+    if (typeof item.ld === "string") stay.listingDescription = item.ld;
+    if (typeof item.rv === "string") stay.reviewText = item.rv;
+    if (typeof item.hr === "string") stay.houseRulesText = item.hr;
+    if (typeof item.am === "string") stay.amenitiesText = item.am;
+    if (typeof item.bd === "number") stay.bedrooms = item.bd;
+    if (typeof item.be === "number") stay.beds = item.be;
+    if (typeof item.ba === "number") stay.bathrooms = item.ba;
+    if (typeof item.mg === "number") stay.maxGuests = item.mg;
+    if (typeof item.rt === "number") stay.rating = item.rt;
+    if (typeof item.rc === "number") stay.reviewCount = item.rc;
+    if (typeof item.sf === "number") stay.squareFeet = item.sf;
     return stay;
   });
 
-  return { travelerType: compact.t, stays, weights };
+  return {
+    travelerType: compact.t,
+    stays,
+    weights,
+    ...(compact.tp ? { tripProfile: compact.tp } : {}),
+  };
 }
 
 // --- public API ------------------------------------------------------------
@@ -260,5 +318,9 @@ export async function readSharedComparison(
 
 /** A ComparisonRequest view of share state, for handing to the dashboard. */
 export function toComparisonRequest(state: ShareState): ComparisonRequest {
-  return { travelerType: state.travelerType, stays: state.stays };
+  return {
+    travelerType: state.travelerType,
+    stays: state.stays,
+    ...(state.tripProfile ? { tripProfile: state.tripProfile } : {}),
+  };
 }

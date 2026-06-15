@@ -16,7 +16,7 @@ type ShareState_ = "idle" | "copied" | "long" | "failed";
 const LABELS: Record<ShareState_, string> = {
   idle: "Copy share link",
   copied: "Link copied!",
-  long: "Link is large — copied",
+  long: "Link is large, copied",
   failed: "Couldn't copy link",
 };
 

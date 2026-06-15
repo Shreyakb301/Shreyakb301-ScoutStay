@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FACILITIES, FACILITY_GROUPS } from "@/lib/facilities";
 import { PLATFORM_OPTIONS } from "@/lib/mock-data";
-import type { Platform, StayListing } from "@/lib/types";
+import type { FacilityId, Platform, StayListing } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+function FacilityPicker({
+  selected,
+  onToggle,
+}: {
+  selected: FacilityId[];
+  onToggle: (id: FacilityId) => void;
+}) {
+  const set = new Set(selected);
+  return (
+    <div className="flex flex-col gap-4">
+      {FACILITY_GROUPS.map((group) => (
+        <div key={group} className="flex flex-col gap-2">
+          <span className="eyebrow">{group}</span>
+          <div className="flex flex-wrap gap-2">
+            {FACILITIES.filter((facility) => facility.group === group).map(
+              (facility) => {
+                const active = set.has(facility.id);
+                return (
+                  <button
+                    key={facility.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => onToggle(facility.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border hover:border-foreground/40"
+                    )}
+                  >
+                    {active && <Check className="size-3.5" />}
+                    {facility.label}
+                  </button>
+                );
+              }
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface StayListingFieldsProps {
   index: number;
@@ -31,6 +76,25 @@ interface StayListingFieldsProps {
   canRemove: boolean;
 }
 
+type NumericField =
+  | "bedrooms"
+  | "beds"
+  | "bathrooms"
+  | "maxGuests"
+  | "rating"
+  | "reviewCount"
+  | "squareFeet";
+
+const NUMERIC_FIELDS: { field: NumericField; label: string; step: string }[] = [
+  { field: "bedrooms", label: "Bedrooms", step: "1" },
+  { field: "beds", label: "Beds", step: "1" },
+  { field: "bathrooms", label: "Bathrooms", step: "1" },
+  { field: "maxGuests", label: "Max guests", step: "1" },
+  { field: "rating", label: "Rating (0-5)", step: "0.1" },
+  { field: "reviewCount", label: "Reviews", step: "1" },
+  { field: "squareFeet", label: "Sq ft", step: "1" },
+];
+
 export function StayListingFields({
   index,
   stay,
@@ -38,6 +102,19 @@ export function StayListingFields({
   onRemove,
   canRemove,
 }: StayListingFieldsProps) {
+  const toggleFacility = (id: FacilityId) => {
+    const current = stay.facilities ?? [];
+    const next = current.includes(id)
+      ? current.filter((facility) => facility !== id)
+      : [...current, id];
+    onChange(stay.id, { facilities: next });
+  };
+
+  const setNumber = (field: NumericField, raw: string) =>
+    onChange(stay.id, {
+      [field]: raw === "" ? undefined : Number(raw),
+    } as Partial<Omit<StayListing, "id">>);
+
   return (
     <Card>
       <CardHeader className="flex items-center justify-between border-b border-border pb-3">
@@ -123,7 +200,7 @@ export function StayListingFields({
           <Label htmlFor={`stay-${stay.id}-address`}>
             Address{" "}
             <span className="font-normal text-muted-foreground">
-              (optional — places the stay on the map)
+              (optional, places the stay on the map)
             </span>
           </Label>
           <AddressAutocomplete
@@ -174,7 +251,7 @@ export function StayListingFields({
           <Label htmlFor={`stay-${stay.id}-notes`}>
             Notes{" "}
             <span className="font-normal text-muted-foreground">
-              (optional — location details, review snippets, amenities)
+              (optional, location details, review snippets, amenities)
             </span>
           </Label>
           <Textarea
@@ -186,6 +263,103 @@ export function StayListingFields({
             }
             rows={2}
           />
+        </div>
+
+        <div className="grid gap-2 sm:col-span-2">
+          <Label>
+            Facilities{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional, what this stay includes)
+            </span>
+          </Label>
+          <FacilityPicker
+            selected={stay.facilities ?? []}
+            onToggle={toggleFacility}
+          />
+        </div>
+
+        {/* Evidence sources for the RAG stay-match engine. */}
+        <div className="flex flex-col gap-4 border-t border-border pt-4 sm:col-span-2">
+          <span className="eyebrow">
+            Listing evidence (optional, powers the evidence match)
+          </span>
+
+          <div className="grid gap-2">
+            <Label htmlFor={`stay-${stay.id}-desc`}>Listing description</Label>
+            <Textarea
+              id={`stay-${stay.id}-desc`}
+              placeholder="Paste the 'about this space' text…"
+              value={stay.listingDescription ?? ""}
+              onChange={(event) =>
+                onChange(stay.id, { listingDescription: event.target.value })
+              }
+              rows={2}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor={`stay-${stay.id}-reviews`}>Reviews</Label>
+            <Textarea
+              id={`stay-${stay.id}-reviews`}
+              placeholder="Paste a few guest reviews…"
+              value={stay.reviewText ?? ""}
+              onChange={(event) =>
+                onChange(stay.id, { reviewText: event.target.value })
+              }
+              rows={2}
+            />
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor={`stay-${stay.id}-rules`}>House rules</Label>
+              <Textarea
+                id={`stay-${stay.id}-rules`}
+                placeholder="e.g. No parties, no pets, quiet hours after 10pm…"
+                value={stay.houseRulesText ?? ""}
+                onChange={(event) =>
+                  onChange(stay.id, { houseRulesText: event.target.value })
+                }
+                rows={2}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={`stay-${stay.id}-amenities`}>
+                Amenities blurb
+              </Label>
+              <Textarea
+                id={`stay-${stay.id}-amenities`}
+                placeholder="Any extra amenity notes from the listing…"
+                value={stay.amenitiesText ?? ""}
+                onChange={(event) =>
+                  onChange(stay.id, { amenitiesText: event.target.value })
+                }
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {NUMERIC_FIELDS.map(({ field, label, step }) => (
+              <div key={field} className="grid gap-1.5">
+                <Label
+                  htmlFor={`stay-${stay.id}-${field}`}
+                  className="text-xs"
+                >
+                  {label}
+                </Label>
+                <Input
+                  id={`stay-${stay.id}-${field}`}
+                  type="number"
+                  min="0"
+                  step={step}
+                  value={stay[field] ?? ""}
+                  onChange={(event) => setNumber(field, event.target.value)}
+                  className="h-9"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>

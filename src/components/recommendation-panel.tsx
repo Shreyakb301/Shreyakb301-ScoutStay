@@ -77,7 +77,7 @@ export function RecommendationPanel({
 
       <div className="flex flex-col gap-3 text-sm leading-relaxed">
         <p>
-          Recommended for your {travelerLabel} profile —{" "}
+          Recommended for your {travelerLabel} profile,{" "}
           {reasons.length > 0
             ? `it leads the manifest on ${joinProse(reasons)}`
             : "it is the strongest overall fit"}
@@ -107,7 +107,7 @@ export function RecommendationPanel({
           <p className="text-muted-foreground">
             Lowest-rated:{" "}
             <span className="font-medium text-foreground">{biggestRisk.stay.name}</span>{" "}
-            (<span className="data">{biggestRisk.overallScore}</span>) —{" "}
+            (<span className="data">{biggestRisk.overallScore}</span>),{" "}
             {biggestRisk.cons[0]?.toLowerCase() ?? "trails across several categories"}.
           </p>
         )}

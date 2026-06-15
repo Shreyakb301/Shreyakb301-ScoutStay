@@ -61,6 +61,15 @@ export const SAMPLE_STAYS: Omit<StayListing, "id">[] = [
     region: "Lisboa",
     notes:
       "Walkable central location, lots of cafes and restaurants nearby. Reviews mention some street noise on weekends from nearby bars.",
+    facilities: [
+      "wifi",
+      "kitchen",
+      "heating",
+      "balcony-patio",
+      "self-check-in",
+      "smoke-alarm",
+      "security-cameras",
+    ],
   },
   {
     name: "Riverside Cabin Retreat",
@@ -75,6 +84,19 @@ export const SAMPLE_STAYS: Omit<StayListing, "id">[] = [
     region: "Lisboa",
     notes:
       "Quiet and secluded riverside spot with a full kitchen. Car required — about 20 minutes drive to town, no transit nearby.",
+    facilities: [
+      "wifi",
+      "kitchen",
+      "free-parking",
+      "heating",
+      "washer-dryer",
+      "pet-friendly",
+      "balcony-patio",
+      "hot-tub",
+      "first-aid-kit",
+      "fire-extinguisher",
+      "smoke-alarm",
+    ],
   },
   {
     name: "Hotel Meridian, King Room",
@@ -89,5 +111,18 @@ export const SAMPLE_STAYS: Omit<StayListing, "id">[] = [
     region: "Lisboa",
     notes:
       "Modern hotel with 24h front desk, gym, and fast wifi. Two blocks from the metro station, dining options in the lobby and nearby.",
+    facilities: [
+      "wifi",
+      "kitchen",
+      "gym",
+      "pool",
+      "air-conditioning",
+      "workspace",
+      "self-check-in",
+      "heating",
+      "smoke-alarm",
+      "carbon-monoxide-alarm",
+      "fire-extinguisher",
+    ],
   },
 ];

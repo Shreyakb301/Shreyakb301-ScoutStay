@@ -7,12 +7,11 @@ import { RotateCcw } from "lucide-react";
 import { BriefingSection, StatusTag } from "@/components/briefing";
 import { Button } from "@/components/ui/button";
 import { AirportIntelligence, bestAirportStay } from "@/components/airport-intelligence";
-import { CategoryChart } from "@/components/category-chart";
 import { ExplainableScoreBreakdown } from "@/components/explainable-score-breakdown";
 import { ExportReportButton } from "@/components/export-report-button";
+import { FacilitiesComparison } from "@/components/facilities-comparison";
 import { ListingScoreCard } from "@/components/listing-score-card";
 import { NearbyIntelligence } from "@/components/nearby-intelligence";
-import { PreferencePanel } from "@/components/preference-panel";
 import { ProsConsCard } from "@/components/pros-cons-card";
 import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
@@ -21,10 +20,12 @@ import { SaveComparisonButton } from "@/components/save-comparison-button";
 import { ScoreCard } from "@/components/score-card";
 import { ShareComparisonButton } from "@/components/share-comparison-button";
 import { TravelDecisionBrief } from "@/components/travel-decision-brief";
+import { deriveProfileFromContext } from "@/components/user-trip-profile";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { useAirportIntelligence } from "@/hooks/use-airport-intelligence";
 import { useGeocodedStays } from "@/hooks/use-geocoded-stays";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
+import { DEFAULT_NEARBY_RADIUS_M } from "@/lib/nearby-places";
 
 // Leaflet touches `window` at import time and adds weight; load it only
 // once the dashboard is shown, and never on the server.
@@ -40,7 +41,7 @@ import {
   TRAVELER_DEFAULT_WEIGHTS,
   type ScoreWeights,
 } from "@/lib/scoring";
-import type { ComparisonRequest } from "@/lib/types";
+import type { ComparisonRequest, UserTripProfile } from "@/lib/types";
 
 interface ResultsDashboardProps {
   request: ComparisonRequest;
@@ -67,18 +68,19 @@ export function ResultsDashboard({
   // nearby-place signals for each located stay. Scores start from the mock
   // engine and refine in place once the live data lands.
   const { locations } = useGeocodedStays(request.stays);
+  const [nearbyRadius, setNearbyRadius] = useState(DEFAULT_NEARBY_RADIUS_M);
   const {
     intelligence,
     errors: nearbyErrors,
     loading: nearbyLoading,
-  } = useNearbyPlaces(locations, request.travelerType);
+  } = useNearbyPlaces(locations, request.travelerType, nearbyRadius);
   const {
     airports,
     errors: airportErrors,
     loading: airportsLoading,
   } = useAirportIntelligence(locations);
 
-  const [weights, setWeights] = useState<ScoreWeights>(
+  const [weights] = useState<ScoreWeights>(
     () => initialWeights ?? TRAVELER_DEFAULT_WEIGHTS[request.travelerType]
   );
 
@@ -88,6 +90,10 @@ export function ResultsDashboard({
   );
 
   const reference = useMemo(() => buildReference(request), [request]);
+
+  const [profile] = useState<UserTripProfile>(
+    () => request.tripProfile ?? deriveProfileFromContext(request.tripContext)
+  );
 
   const winner = result.bestOverall;
   const alternatives = result.scoredStays.filter(
@@ -114,7 +120,7 @@ export function ResultsDashboard({
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <SaveComparisonButton
-              request={request}
+              request={{ ...request, tripProfile: profile }}
               weights={weights}
               winnerName={winner.stay.name}
             />
@@ -123,9 +129,10 @@ export function ResultsDashboard({
                 travelerType: request.travelerType,
                 stays: request.stays,
                 weights,
+                tripProfile: profile,
               }}
             />
-            <ExportReportButton result={result} weights={weights} />
+            <ExportReportButton result={result} weights={weights} profile={profile} />
             <Button variant="outline" size="sm" onClick={onStartOver}>
               <RotateCcw className="size-4" />
               New briefing
@@ -133,15 +140,6 @@ export function ResultsDashboard({
           </div>
         </div>
       </header>
-
-      {/* Mission parameters (priority weighting) */}
-      <PreferencePanel
-        weights={weights}
-        onWeightsChange={setWeights}
-        onReset={() =>
-          setWeights(TRAVELER_DEFAULT_WEIGHTS[request.travelerType])
-        }
-      />
 
       {/* ─── 01 EXECUTIVE SUMMARY ───────────────────────────────── */}
       <BriefingSection
@@ -183,10 +181,7 @@ export function ResultsDashboard({
 
       {/* ─── 02 LOCATION ANALYSIS ───────────────────────────────── */}
       <BriefingSection code="02" title="Location analysis">
-        <div className="flex flex-col gap-4">
-          <StayMap scoredStays={result.scoredStays} airports={airports} />
-          <CategoryChart scoredStays={result.scoredStays} />
-        </div>
+        <StayMap scoredStays={result.scoredStays} airports={airports} />
       </BriefingSection>
 
       {/* ─── 03 AIRPORT ACCESS ──────────────────────────────────── */}
@@ -209,20 +204,29 @@ export function ResultsDashboard({
           scoredStays={result.scoredStays}
           errors={nearbyErrors}
           loading={nearbyLoading}
+          radiusMeters={nearbyRadius}
+          onRadiusChange={setNearbyRadius}
         />
       </BriefingSection>
 
-      {/* ─── 05 RISK ASSESSMENT ─────────────────────────────────── */}
-      <BriefingSection code="05" title="Risk assessment">
+      {/* ─── 05 FACILITIES COMPARISON ───────────────────────────── */}
+      <BriefingSection code="05" title="Facilities comparison">
+        <FacilitiesComparison
+          stays={result.scoredStays.map((entry) => entry.stay)}
+        />
+      </BriefingSection>
+
+      {/* ─── 06 RISK ASSESSMENT ─────────────────────────────────── */}
+      <BriefingSection code="06" title="Risk assessment">
         <div className="flex flex-col gap-6">
           <RiskAssessment result={result} weights={weights} />
           <ExplainableScoreBreakdown scoredStays={result.scoredStays} />
         </div>
       </BriefingSection>
 
-      {/* ─── 06 RECOMMENDED STAY ────────────────────────────────── */}
+      {/* ─── 07 RECOMMENDED STAY ────────────────────────────────── */}
       <BriefingSection
-        code="06"
+        code="07"
         title="Recommended stay"
         meta={<StatusTag status="go">Primary</StatusTag>}
       >
@@ -235,9 +239,9 @@ export function ResultsDashboard({
         </div>
       </BriefingSection>
 
-      {/* ─── 07 ALTERNATIVE OPTIONS ─────────────────────────────── */}
+      {/* ─── 08 ALTERNATIVE OPTIONS ─────────────────────────────── */}
       <BriefingSection
-        code="07"
+        code="08"
         title="Alternative options"
         meta={`${String(alternatives.length).padStart(2, "0")} on file`}
       >

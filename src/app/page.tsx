@@ -1,14 +1,13 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { TRAVELER_TYPES } from "@/lib/mock-data";
 
 const STEPS = [
   {
     code: "01",
     title: "Declare the mission",
     description:
-      "Set the passenger profile — solo, couple, family, friends, or business. Each profile reweights the assessment.",
+      "Set the passenger profile: solo, couple, family, friends, or business. Each profile reweights the assessment.",
   },
   {
     code: "02",
@@ -20,7 +19,7 @@ const STEPS = [
     code: "03",
     title: "Receive the briefing",
     description:
-      "Get a structured dossier: executive summary, location, airport access, neighborhood, and risk — scored and ranked.",
+      "Get a structured dossier: executive summary, location, airport access, neighborhood, and risk, scored and ranked.",
   },
 ];
 
@@ -45,7 +44,7 @@ export default function HomePage() {
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
           You&apos;ve narrowed it to a few stays. ScoutStay assesses each one
           against the criteria that matter for your trip and returns a single,
-          structured decision dossier — location, airport access, neighborhood,
+          structured decision dossier: location, airport access, neighborhood,
           and risk.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
@@ -101,29 +100,6 @@ export default function HomePage() {
             </div>
           ))}
         </dl>
-      </section>
-
-      {/* Passenger profiles */}
-      <section className="py-14">
-        <div className="flex items-baseline gap-3 border-b-2 border-foreground pb-2">
-          <span className="data text-xs font-semibold text-signal">§</span>
-          <h2 className="text-lg font-bold uppercase tracking-[0.12em]">
-            Passenger profiles
-          </h2>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {TRAVELER_TYPES.map((type) => (
-            <div
-              key={type.id}
-              className="flex items-center gap-2 border border-border px-3 py-2"
-            >
-              <span className="data border border-foreground px-1.5 text-xs font-bold tracking-wider">
-                {type.code}
-              </span>
-              <span className="text-sm font-medium">{type.label}</span>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* CTA */}

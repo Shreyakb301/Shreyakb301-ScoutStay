@@ -72,7 +72,7 @@ export interface ComparisonResult {
 
 /**
  * Relative importance per category on a 0–100 slider scale. Only the
- * proportions matter — weights are normalized before scoring.
+ * proportions matter, weights are normalized before scoring.
  */
 export type ScoreWeights = Record<CategoryId, number>;
 
@@ -303,7 +303,7 @@ const PRO_TEXT: Record<CategoryId, string> = {
 
 const CON_TEXT: Record<CategoryId, string> = {
   safetyScore: "Safety profile is below your other picks",
-  walkabilityScore: "Limited walkability — expect to drive",
+  walkabilityScore: "Limited walkability, expect to drive",
   transitScore: "Poor public transit access",
   foodAccessScore: "Few food options close by",
   noiseRiskScore: "Higher noise risk than your other picks",
@@ -411,7 +411,7 @@ function heuristicExplanation(
     reason:
       matches.length > 0
         ? "Estimated from your notes and the platform type."
-        : "Rough estimate from the platform type only — add notes or an address for better signals.",
+        : "Rough estimate from the platform type only, add notes or an address for better signals.",
     positives,
     negatives,
     confidence: matches.length > 0 ? "Medium" : "Low",
@@ -440,13 +440,13 @@ function nearbyExplanation(
     reason = `${counts.transit} public transport stops or stations within ${radiusMeters} m.`;
     if (counts.transit >= 8) positives.push(`Excellent coverage: ${counts.transit} stops/stations nearby`);
     else if (counts.transit >= 3) positives.push(`${counts.transit} stops/stations within walking distance`);
-    if (counts.transit === 0) negatives.push("No public transport within walking distance — plan on driving");
+    if (counts.transit === 0) negatives.push("No public transport within walking distance, plan on driving");
     else if (counts.transit < 3) negatives.push("Sparse transit options nearby");
   } else if (category === "noiseRiskScore") {
     reason = `${counts.nightlife} bars, pubs, or clubs mapped within ${radiusMeters} m.`;
-    if (counts.nightlife <= 2) positives.push("Little to no nightlife nearby — likely quiet at night");
+    if (counts.nightlife <= 2) positives.push("Little to no nightlife nearby, likely quiet at night");
     else if (counts.nightlife <= 8) positives.push("Moderate nightlife presence");
-    if (counts.nightlife > 25) negatives.push(`${counts.nightlife} nightlife venues nearby — expect evening noise`);
+    if (counts.nightlife > 25) negatives.push(`${counts.nightlife} nightlife venues nearby, expect evening noise`);
     else if (counts.nightlife > 8) negatives.push(`${counts.nightlife} nightlife venues within earshot`);
   }
 
@@ -503,9 +503,9 @@ function travelerFitExplanation(ctx: ExplanationContext): ScoreExplanation {
     const score = ctx.scores[category];
     const pct = Math.round(weight * 100);
     if (score >= 75) {
-      positives.push(`Strong ${CATEGORY_LABELS[category].toLowerCase()} (${score}) — weighted ${pct}% for ${travelerName} trips`);
+      positives.push(`Strong ${CATEGORY_LABELS[category].toLowerCase()} (${score}), weighted ${pct}% for ${travelerName} trips`);
     } else if (score <= 55 && weight >= 0.15) {
-      negatives.push(`Weak ${CATEGORY_LABELS[category].toLowerCase()} (${score}) — weighted ${pct}% for ${travelerName} trips`);
+      negatives.push(`Weak ${CATEGORY_LABELS[category].toLowerCase()} (${score}), weighted ${pct}% for ${travelerName} trips`);
     }
   }
 
@@ -523,7 +523,7 @@ function travelerFitExplanation(ctx: ExplanationContext): ScoreExplanation {
     id: "travelerFitScore",
     label: CATEGORY_LABELS.travelerFitScore,
     score: ctx.scores.travelerFitScore,
-    reason: `Blend of what ${travelerName} trips prioritize — mostly ${topLabels}.`,
+    reason: `Blend of what ${travelerName} trips prioritize, mostly ${topLabels}.`,
     positives: positives.slice(0, 3),
     negatives: negatives.slice(0, 3),
     confidence: ctx.nearby ? "High" : "Medium",
@@ -546,7 +546,7 @@ function airportExplanation(
   if (airport.distanceKm > 50) {
     negatives.push(`Long transfer: ${airport.distanceKm} km from the airport`);
   } else if (airport.distanceKm > 25) {
-    negatives.push(`${airport.distanceKm} km out — budget extra transfer time`);
+    negatives.push(`${airport.distanceKm} km out, budget extra transfer time`);
   }
 
   return {

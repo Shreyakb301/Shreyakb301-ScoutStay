@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { Pencil, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ResultsDashboard } from "@/components/results-dashboard";
 import { SavedComparisonsList } from "@/components/saved-comparisons-list";
 import { StayListingFields } from "@/components/stay-listing-fields";
-import { TravelerTypeSelector } from "@/components/traveler-type-selector";
+import { TripIntakeFlow } from "@/components/trip-intake-flow";
 import { SAMPLE_STAYS } from "@/lib/mock-data";
 import type { ScoreWeights } from "@/lib/scoring";
 import {
@@ -15,11 +15,17 @@ import {
   toComparisonRequest,
 } from "@/lib/share-comparison";
 import {
+  createSampleTripContext,
+  deriveWeightsFromContext,
+  summarizeTripContext,
+  tripGroupToTravelerType,
+  type TripContext,
+} from "@/lib/trip-intake";
+import {
   MAX_STAYS,
   MIN_STAYS,
   type ComparisonRequest,
   type StayListing,
-  type TravelerTypeId,
 } from "@/lib/types";
 
 function createEmptyStay(): StayListing {
@@ -35,15 +41,13 @@ function createEmptyStay(): StayListing {
 }
 
 export function CompareForm() {
-  const [travelerType, setTravelerType] = useState<TravelerTypeId | null>(
-    null
-  );
+  const [phase, setPhase] = useState<"intake" | "stays">("intake");
+  const [tripContext, setTripContext] = useState<TripContext | null>(null);
   const [stays, setStays] = useState<StayListing[]>(() => [
     createEmptyStay(),
     createEmptyStay(),
   ]);
-  const [submitted, setSubmitted] =
-    useState<ComparisonRequest | null>(null);
+  const [submitted, setSubmitted] = useState<ComparisonRequest | null>(null);
   const [loadedWeights, setLoadedWeights] = useState<ScoreWeights | null>(null);
   const [restoring, setRestoring] = useState(false);
 
@@ -68,8 +72,18 @@ export function CompareForm() {
     );
   };
 
+  // Fill every stay in the manifest with a realistic sample listing (cycling
+  // the sample set by position) so users can populate it without typing.
+  const generateAllStays = () => {
+    setStays((prev) =>
+      prev.map((stay, index) => ({
+        ...SAMPLE_STAYS[index % SAMPLE_STAYS.length],
+        id: stay.id,
+      }))
+    );
+  };
+
   const handleLoad = (request: ComparisonRequest, weights: ScoreWeights) => {
-    setTravelerType(request.travelerType);
     setStays(request.stays);
     setLoadedWeights(weights);
     setSubmitted(request);
@@ -77,8 +91,7 @@ export function CompareForm() {
   };
 
   // Restore a shared comparison from ?data=… on first mount. Decoding is
-  // async (gzip), and malformed/invalid tokens resolve to null, leaving the
-  // empty form untouched.
+  // async (gzip); malformed tokens resolve to null and leave the flow alone.
   useEffect(() => {
     if (!window.location.search.includes("data=")) return;
     let active = true;
@@ -87,7 +100,6 @@ export function CompareForm() {
       .then((shared) => {
         if (!active) return;
         if (shared) {
-          setTravelerType(shared.travelerType);
           setStays(shared.stays);
           setLoadedWeights(shared.weights);
           setSubmitted(toComparisonRequest(shared));
@@ -101,18 +113,38 @@ export function CompareForm() {
     };
   }, []);
 
-  const fillWithSampleData = () => {
-    setTravelerType("couple");
-    setStays(
-      SAMPLE_STAYS.map((sample) => ({ ...sample, id: crypto.randomUUID() }))
-    );
-    setSubmitted(null);
+  const handleIntakeComplete = (context: TripContext) => {
+    setTripContext(context);
+    setPhase("stays");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const useSampleTrip = () => {
+    const context = createSampleTripContext();
+    const sampleStays = SAMPLE_STAYS.map((sample) => ({
+      ...sample,
+      id: crypto.randomUUID(),
+    }));
+    setTripContext(context);
+    setStays(sampleStays);
+    setLoadedWeights(deriveWeightsFromContext(context));
+    setSubmitted({
+      travelerType: tripGroupToTravelerType(context.travelGroup),
+      stays: sampleStays,
+      tripContext: context,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!travelerType) return;
-    setSubmitted({ travelerType, stays });
+    if (!tripContext) return;
+    setLoadedWeights(deriveWeightsFromContext(tripContext));
+    setSubmitted({
+      travelerType: tripGroupToTravelerType(tripContext.travelGroup),
+      stays,
+      tripContext,
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -124,6 +156,8 @@ export function CompareForm() {
         onStartOver={() => {
           setSubmitted(null);
           setLoadedWeights(null);
+          setTripContext(null);
+          setPhase("intake");
         }}
       />
     );
@@ -139,37 +173,53 @@ export function CompareForm() {
     );
   }
 
+  if (phase === "intake") {
+    return (
+      <div className="flex flex-col gap-8">
+        <SavedComparisonsList onLoad={handleLoad} />
+        <TripIntakeFlow
+          initialContext={tripContext ?? undefined}
+          onComplete={handleIntakeComplete}
+          onUseSample={useSampleTrip}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-8">
-      <SavedComparisonsList onLoad={handleLoad} />
-      <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+      {/* Captured trip context */}
+      <section className="flex flex-col gap-3">
         <div className="flex items-end justify-between gap-4 border-b-2 border-foreground pb-2">
           <div className="flex items-baseline gap-3">
             <span className="data text-xs font-semibold text-signal">01</span>
             <h2 className="text-lg font-bold uppercase tracking-[0.12em]">
-              Traveler profile
+              Trip context
             </h2>
           </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={fillWithSampleData}
+            onClick={() => setPhase("intake")}
           >
-            <Sparkles className="size-4" />
-            Sample data
+            <Pencil className="size-4" />
+            Edit trip context
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          We&apos;ll weight the assessment toward what matters for your trip.
-        </p>
-        <TravelerTypeSelector
-          value={travelerType}
-          onChange={setTravelerType}
-        />
+        {tripContext && (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+            {summarizeTripContext(tripContext).map((item) => (
+              <div key={item.label} className="border-l-2 border-border pl-3">
+                <dt className="eyebrow">{item.label}</dt>
+                <dd className="mt-0.5 text-sm font-medium">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </section>
 
+      {/* Stay manifest */}
       <section className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-4 border-b-2 border-foreground pb-2">
           <div className="flex items-baseline gap-3">
@@ -178,9 +228,20 @@ export function CompareForm() {
               Stay manifest
             </h2>
           </div>
-          <span className="eyebrow pb-0.5">
-            {stays.length}/{MAX_STAYS}
-          </span>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={generateAllStays}
+            >
+              <Sparkles className="size-4" />
+              Generate details
+            </Button>
+            <span className="eyebrow pb-0.5">
+              {stays.length}/{MAX_STAYS}
+            </span>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Add between {MIN_STAYS} and {MAX_STAYS} listings you&apos;re deciding
@@ -213,16 +274,10 @@ export function CompareForm() {
       </section>
 
       <section className="flex flex-col gap-3 border-t-2 border-foreground pt-6">
-        <Button type="submit" size="lg" disabled={!travelerType}>
+        <Button type="submit" size="lg">
           Generate briefing
         </Button>
-        {!travelerType && (
-          <p className="text-center text-sm text-muted-foreground">
-            Select a traveler type to continue.
-          </p>
-        )}
       </section>
-      </form>
-    </div>
+    </form>
   );
 }

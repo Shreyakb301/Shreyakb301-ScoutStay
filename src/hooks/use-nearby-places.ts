@@ -27,7 +27,8 @@ export interface NearbyPlacesState {
  */
 export function useNearbyPlaces(
   locations: Record<string, LngLat>,
-  travelerType: TravelerTypeId
+  travelerType: TravelerTypeId,
+  radiusMeters: number = DEFAULT_NEARBY_RADIUS_M
 ): NearbyPlacesState {
   const [intelligence, setIntelligence] = useState<
     Record<string, LocationIntelligence>
@@ -54,9 +55,13 @@ export function useNearbyPlaces(
       await Promise.all(
         entries.map(async ([stayId, coords]) => {
           try {
-            const places = await fetchNearbyPlaces(coords.lat, coords.lng);
+            const places = await fetchNearbyPlaces(
+              coords.lat,
+              coords.lng,
+              radiusMeters
+            );
             nextIntelligence[stayId] = {
-              radiusMeters: DEFAULT_NEARBY_RADIUS_M,
+              radiusMeters,
               counts: countNearbyPlaces(places),
               scores: calculateLocationScores(places, travelerType),
               places,
@@ -79,7 +84,7 @@ export function useNearbyPlaces(
     return () => {
       cancelled = true;
     };
-  }, [locations, travelerType]);
+  }, [locations, travelerType, radiusMeters]);
 
   return { intelligence, errors, loading };
 }

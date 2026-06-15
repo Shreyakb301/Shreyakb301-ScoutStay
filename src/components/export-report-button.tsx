@@ -10,15 +10,18 @@ import {
   downloadMarkdown,
 } from "@/lib/report-export";
 import type { ComparisonResult, ScoreWeights } from "@/lib/scoring";
+import type { UserTripProfile } from "@/lib/types";
 
 type CopyState = "idle" | "copied" | "failed";
 
 export function ExportReportButton({
   result,
   weights,
+  profile,
 }: {
   result: ComparisonResult;
   weights: ScoreWeights;
+  profile?: UserTripProfile;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,7 +40,7 @@ export function ExportReportButton({
   };
 
   const handleCopy = async () => {
-    const report = buildMarkdownReport(result, weights);
+    const report = buildMarkdownReport(result, weights, profile);
     const ok = await copyTextToClipboard(report);
     if (ok) {
       flashState("copied");
@@ -50,7 +53,7 @@ export function ExportReportButton({
   };
 
   const handleDownload = () => {
-    downloadMarkdown(buildMarkdownReport(result, weights));
+    downloadMarkdown(buildMarkdownReport(result, weights, profile));
   };
 
   return (
