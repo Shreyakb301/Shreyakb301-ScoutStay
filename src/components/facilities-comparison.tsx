@@ -1,87 +1,119 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 
 import { DataField, Panel } from "@/components/briefing";
 import { Button } from "@/components/ui/button";
 import {
-  facilityLabel,
+  FACILITIES,
+  FACILITY_GROUPS,
   getFacilitiesComparisonSummary,
-  getFacilitiesForStay,
-  getFacilitiesOtherStaysHave,
-  getMissingFacilitiesForStay,
 } from "@/lib/facilities";
-import type { FacilityId, StayListing } from "@/lib/types";
+import type { StayListing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type ChipVariant = "have" | "missing" | "gap" | "unique";
-
-const CHIP_STYLES: Record<ChipVariant, string> = {
-  have: "border-go/40",
-  missing: "border-border text-muted-foreground",
-  gap: "border-caution/50",
-  unique: "border-signal",
-};
-
-const DOT_STYLES: Record<ChipVariant, string> = {
-  have: "bg-go",
-  missing: "bg-transparent",
-  gap: "bg-caution",
-  unique: "bg-signal",
-};
-
-function FacilityChip({
-  id,
-  variant,
+/** One card: every amenity as a row, each stay as a column with a marker. */
+function AmenityMatrix({
+  stays,
+  numberById,
 }: {
-  id: FacilityId;
-  variant: ChipVariant;
+  stays: StayListing[];
+  numberById: Record<string, number>;
 }) {
+  const haveSets = stays.map((stay) => new Set(stay.facilities ?? []));
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 border px-2 py-1 text-xs",
-        CHIP_STYLES[variant]
-      )}
-    >
-      {variant !== "missing" && (
-        <span className={cn("size-1.5", DOT_STYLES[variant])} aria-hidden />
-      )}
-      {facilityLabel(id)}
-    </span>
+    <Panel bodyClassName="p-0">
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10 bg-card">
+            <tr className="border-b border-border">
+              <th className="eyebrow h-9 bg-card px-3 text-left">Amenity</th>
+              {stays.map((stay) => (
+                <th
+                  key={stay.id}
+                  className="bg-card px-3 py-1.5 text-center align-bottom"
+                >
+                  <span className="data block text-xs font-semibold">
+                    {String(numberById[stay.id] ?? 0).padStart(2, "0")}
+                  </span>
+                  <span
+                    className="mx-auto block max-w-24 truncate text-[0.7rem] font-medium text-muted-foreground"
+                    title={stay.name}
+                  >
+                    {stay.name}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {FACILITY_GROUPS.map((group) => (
+              <Fragment key={group}>
+                <tr className="border-b border-border bg-muted/40">
+                  <td
+                    className="eyebrow px-3 py-1.5"
+                    colSpan={stays.length + 1}
+                  >
+                    {group}
+                  </td>
+                </tr>
+                {FACILITIES.filter((facility) => facility.group === group).map(
+                  (facility) => (
+                    <tr
+                      key={facility.id}
+                      className="border-b border-border last:border-0"
+                    >
+                      <td className="px-3 py-1.5">{facility.label}</td>
+                      {haveSets.map((set, index) => {
+                        const has = set.has(facility.id);
+                        return (
+                          <td
+                            key={stays[index].id}
+                            className="px-3 py-1.5 text-center"
+                          >
+                            <span
+                              className={cn(
+                                "inline-block size-2.5 border",
+                                has
+                                  ? "border-go bg-go"
+                                  : "border-border bg-transparent"
+                              )}
+                              aria-label={has ? "included" : "not included"}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
-function ChipRow({
-  label,
-  count,
-  children,
-}: {
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="eyebrow">
-        {label} ({count})
-      </span>
-      {count === 0 ? (
-        <span className="text-sm text-muted-foreground">None</span>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">{children}</div>
-      )}
-    </div>
-  );
-}
+/** Up to this many stays can be shown in the matrix at once. */
+const MAX_COMPARE = 3;
 
 export function FacilitiesComparison({ stays }: { stays: StayListing[] }) {
   const summary = useMemo(
     () => getFacilitiesComparisonSummary(stays),
     [stays]
   );
-  const [selectedId, setSelectedId] = useState(stays[0]?.id ?? "");
-  const selected = stays.find((s) => s.id === selectedId) ?? stays[0];
+  const numberById = useMemo(
+    () =>
+      Object.fromEntries(stays.map((stay, index) => [stay.id, index + 1])) as Record<
+        string,
+        number
+      >,
+    [stays]
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    stays.slice(0, MAX_COMPARE).map((stay) => stay.id)
+  );
 
   if (!summary.anyFacilitiesEntered) {
     return (
@@ -95,19 +127,22 @@ export function FacilitiesComparison({ stays }: { stays: StayListing[] }) {
     );
   }
 
-  const has = getFacilitiesForStay(selected);
-  const missing = getMissingFacilitiesForStay(selected);
-  const gap = getFacilitiesOtherStaysHave(selected, stays);
-  const unique = summary.unique[selected.id] ?? [];
-  const ownSet = new Set(selected.facilities ?? []);
+  const limited = stays.length > MAX_COMPARE;
+  const selectedStays = stays.filter((stay) => selectedIds.includes(stay.id));
+  const matrixStays = limited
+    ? selectedStays.length > 0
+      ? selectedStays
+      : stays.slice(0, MAX_COMPARE)
+    : stays;
 
-  const competitors = stays
-    .filter((s) => s.id !== selected.id)
-    .map((other) => ({
-      stay: other,
-      offers: getFacilitiesForStay(other).filter((id) => !ownSet.has(id)),
-    }))
-    .filter((c) => c.offers.length > 0);
+  const toggle = (id: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length >= MAX_COMPARE
+          ? prev
+          : [...prev, id]
+    );
 
   return (
     <div className="flex flex-col gap-5">
@@ -139,77 +174,38 @@ export function FacilitiesComparison({ stays }: { stays: StayListing[] }) {
         />
       </div>
 
-      {/* Stay switcher */}
-      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-        {stays.map((stay, index) => {
-          const active = stay.id === selected.id;
-          return (
-            <Button
-              key={stay.id}
-              type="button"
-              size="sm"
-              variant={active ? "default" : "outline"}
-              onClick={() => setSelectedId(stay.id)}
-            >
-              <span className="data">{String(index + 1).padStart(2, "0")}</span>
-              <span className="max-w-32 truncate">{stay.name}</span>
-              <span className="data text-xs opacity-70">
-                {summary.countsByStayId[stay.id] ?? 0}
-              </span>
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Selected stay breakdown */}
-      <Panel
-        title={<span className="truncate">{selected.name}</span>}
-        titleClassName="text-sm font-semibold"
-        bodyClassName="flex flex-col gap-5"
-      >
-        <ChipRow label="Included" count={has.length}>
-          {has.map((id) => (
-            <FacilityChip key={id} id={id} variant="have" />
-          ))}
-        </ChipRow>
-
-        <div className="border-t border-border pt-4">
-          <ChipRow label="Competitors offer, this stay lacks" count={gap.length}>
-            {gap.map((id) => (
-              <FacilityChip key={id} id={id} variant="gap" />
-            ))}
-          </ChipRow>
-          {competitors.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2">
-              {competitors.map(({ stay, offers }) => (
-                <p key={stay.id} className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    {stay.name}
-                  </span>{" "}
-                  has{" "}
-                  {offers.map((id) => facilityLabel(id)).join(", ")}.
-                </p>
-              ))}
-            </div>
-          )}
+      {/* Pick which stays to compare when there are more than three */}
+      {limited && (
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <span className="eyebrow">
+            Compare up to {MAX_COMPARE} ({matrixStays.length} selected)
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {stays.map((stay, index) => {
+              const active = selectedIds.includes(stay.id);
+              const atMax = !active && selectedIds.length >= MAX_COMPARE;
+              return (
+                <Button
+                  key={stay.id}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  disabled={atMax}
+                  onClick={() => toggle(stay.id)}
+                >
+                  <span className="data">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="max-w-32 truncate">{stay.name}</span>
+                </Button>
+              );
+            })}
+          </div>
         </div>
+      )}
 
-        <div className="border-t border-border pt-4">
-          <ChipRow label="Unique to this stay" count={unique.length}>
-            {unique.map((id) => (
-              <FacilityChip key={id} id={id} variant="unique" />
-            ))}
-          </ChipRow>
-        </div>
-
-        <div className="border-t border-border pt-4">
-          <ChipRow label="Not included" count={missing.length}>
-            {missing.map((id) => (
-              <FacilityChip key={id} id={id} variant="missing" />
-            ))}
-          </ChipRow>
-        </div>
-      </Panel>
+      {/* All amenities in one card */}
+      <AmenityMatrix stays={matrixStays} numberById={numberById} />
     </div>
   );
 }

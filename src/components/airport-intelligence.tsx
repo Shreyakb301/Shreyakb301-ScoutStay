@@ -1,9 +1,7 @@
 import { Panel, StatusTag } from "@/components/briefing";
-import { scoreTextClass } from "@/components/verdict-badge";
 import type { AirportIntelligence as AirportInfo } from "@/lib/airport-intelligence";
 import { AIRPORT_SEARCH_RADIUS_KM } from "@/lib/airport-intelligence";
 import type { ScoredStay } from "@/lib/scoring";
-import { cn } from "@/lib/utils";
 
 interface AirportIntelligenceProps {
   scoredStays: ScoredStay[];
@@ -57,34 +55,14 @@ function StayAirportCard({
         </p>
       ) : (
         <>
-          <div className="flex items-center gap-2">
-            <span className="data flex h-6 min-w-9 items-center justify-center border border-foreground px-1 text-xs font-bold tracking-wider">
-              {info.airport.iata ?? "APT"}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">
-              {info.airport.name}
-            </span>
-          </div>
+          <span className="min-w-0 truncate text-sm font-medium">
+            {info.airport.name}
+          </span>
 
           <div className="flex items-center gap-4 text-sm">
             <span>
               <span className="eyebrow">Dist</span>{" "}
               <span className="data font-semibold">{info.distanceKm} km</span>
-            </span>
-            <span>
-              <span className="eyebrow">Transfer</span>{" "}
-              <span className="data font-semibold">~{info.driveMinutes} min</span>
-            </span>
-            <span className="ml-auto">
-              <span className="eyebrow">Access</span>{" "}
-              <span
-                className={cn(
-                  "data font-bold",
-                  scoreTextClass(info.accessibilityScore)
-                )}
-              >
-                {info.accessibilityScore}
-              </span>
             </span>
           </div>
         </>

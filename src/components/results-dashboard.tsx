@@ -17,7 +17,6 @@ import { RankingTable } from "@/components/ranking-table";
 import { RecommendationPanel } from "@/components/recommendation-panel";
 import { RiskAssessment } from "@/components/risk-assessment";
 import { SaveComparisonButton } from "@/components/save-comparison-button";
-import { ScoreCard } from "@/components/score-card";
 import { ShareComparisonButton } from "@/components/share-comparison-button";
 import { TravelDecisionBrief } from "@/components/travel-decision-brief";
 import { deriveProfileFromContext } from "@/components/user-trip-profile";
@@ -148,32 +147,6 @@ export function ResultsDashboard({
         meta={<VerdictBadge verdict={winner.verdict} />}
       >
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
-            <ScoreCard
-              label="Best overall"
-              stayName={result.bestOverall.stay.name}
-              score={result.bestOverall.overallScore}
-              detail="Top pick for this trip"
-            />
-            <ScoreCard
-              label="Safest"
-              stayName={result.safest.stay.name}
-              score={result.safest.scores.safetyScore}
-              detail="Highest safety score"
-            />
-            <ScoreCard
-              label="Best value"
-              stayName={result.bestValue.stay.name}
-              score={result.bestValue.scores.valueScore}
-              detail="Most for your money"
-            />
-            <ScoreCard
-              label="Highest risk"
-              stayName={result.biggestRisk.stay.name}
-              score={result.biggestRisk.overallScore}
-              detail="Lowest overall score"
-            />
-          </div>
           <TravelDecisionBrief result={result} weights={weights} />
           <RankingTable scoredStays={result.scoredStays} />
         </div>
