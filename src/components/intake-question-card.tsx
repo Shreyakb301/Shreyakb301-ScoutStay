@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { PreferenceSlider } from "@/components/preference-slider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   ACCOMMODATION_OPTIONS,
   ARRIVAL_OPTIONS,
@@ -177,6 +179,39 @@ export function IntakeQuestionCard({
             value={childrenValue}
             onSelect={(value) => onChange({ withChildren: value === "yes" })}
           />
+        );
+      case "dates":
+        return (
+          <div data-keep-keys className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="trip-check-in" className="eyebrow">
+                Check-in
+              </Label>
+              <Input
+                id="trip-check-in"
+                type="date"
+                value={context.checkIn ?? ""}
+                max={context.checkOut ?? undefined}
+                onChange={(event) =>
+                  onChange({ checkIn: event.target.value || null })
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="trip-check-out" className="eyebrow">
+                Check-out
+              </Label>
+              <Input
+                id="trip-check-out"
+                type="date"
+                value={context.checkOut ?? ""}
+                min={context.checkIn ?? undefined}
+                onChange={(event) =>
+                  onChange({ checkOut: event.target.value || null })
+                }
+              />
+            </div>
+          </div>
         );
       case "visitPlaces":
         return (

@@ -59,6 +59,9 @@ export interface TripContext {
   arrivalLocation: PlaceRef | null;
   travelGroup: TravelGroup | null;
   withChildren: boolean | null;
+  /** Trip dates (ISO YYYY-MM-DD), used for live pricing and fair comparison. */
+  checkIn: string | null;
+  checkOut: string | null;
   visitPlaces: PlaceRef[];
   preferredArea: PreferredArea | null;
   rentalCar: RentalCarChoice | null;
@@ -147,6 +150,8 @@ export function createDefaultTripContext(): TripContext {
     arrivalLocation: null,
     travelGroup: null,
     withChildren: null,
+    checkIn: null,
+    checkOut: null,
     visitPlaces: [],
     preferredArea: null,
     rentalCar: null,
@@ -180,7 +185,7 @@ export function createSampleTripContext(): TripContext {
   };
 }
 
-export type QuestionKind = "single" | "place" | "places" | "sliders";
+export type QuestionKind = "single" | "place" | "places" | "sliders" | "dates";
 
 export type QuestionId =
   | "accommodation"
@@ -188,6 +193,7 @@ export type QuestionId =
   | "arrivalLocation"
   | "travelGroup"
   | "children"
+  | "dates"
   | "visitPlaces"
   | "preferredArea"
   | "rentalCar"
@@ -262,6 +268,17 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
     required: true,
     visible: (c) => c.travelGroup === "family",
     answered: (c) => c.withChildren !== null,
+  },
+  {
+    id: "dates",
+    section: "Trip context",
+    title: "When are you traveling?",
+    helper:
+      "Optional, but it pulls live nightly prices and keeps every stay priced for the same dates.",
+    kind: "dates",
+    required: false,
+    visible: () => true,
+    answered: () => true,
   },
   {
     id: "visitPlaces",
@@ -363,6 +380,9 @@ export function summarizeTripContext(
   push("Rental car", labelOf(RENTAL_CAR_OPTIONS, context.rentalCar));
   push("Getting around", labelOf(LOCAL_TRANSPORT_OPTIONS, context.localTransport));
   push("Pets", labelOf(PET_OPTIONS, context.pets));
+  if (context.checkIn && context.checkOut) {
+    push("Dates", `${context.checkIn} to ${context.checkOut}`);
+  }
   if (context.visitPlaces.length > 0) {
     push("Planned visits", context.visitPlaces.map((p) => p.name).join(", "));
   }
@@ -389,6 +409,19 @@ export function tripGroupToTravelerType(
   group: TravelGroup | null
 ): TravelerTypeId {
   return group ? GROUP_TO_TRAVELER[group] : "solo";
+}
+
+const GROUP_GUESTS: Record<TravelGroup, number> = {
+  solo: 1,
+  couple: 2,
+  friends: 4,
+  family: 4,
+  colleagues: 2,
+};
+
+/** Default adult headcount for a travel group, used for live pricing. */
+export function guestsForGroup(group: TravelGroup | null): number {
+  return group ? GROUP_GUESTS[group] : 2;
 }
 
 const clamp = (value: number) =>

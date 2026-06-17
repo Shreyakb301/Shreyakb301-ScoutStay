@@ -6,6 +6,7 @@ import { Pencil, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResultsDashboard } from "@/components/results-dashboard";
 import { SavedComparisonsList } from "@/components/saved-comparisons-list";
+import { ScrapeListingPanel } from "@/components/scrape-listing-panel";
 import { StayListingFields } from "@/components/stay-listing-fields";
 import { TripIntakeFlow } from "@/components/trip-intake-flow";
 import { SAMPLE_STAYS } from "@/lib/mock-data";
@@ -17,6 +18,7 @@ import {
 import {
   createSampleTripContext,
   deriveWeightsFromContext,
+  guestsForGroup,
   summarizeTripContext,
   tripGroupToTravelerType,
   type TripContext,
@@ -81,6 +83,19 @@ export function CompareForm() {
         id: stay.id,
       }))
     );
+  };
+
+  // Drop a scraped/imported listing into the first empty slot, else append.
+  const addScrapedStay = (stay: StayListing) => {
+    setStays((prev) => {
+      const emptyIndex = prev.findIndex((s) => !s.url.trim());
+      if (emptyIndex !== -1) {
+        return prev.map((s, i) =>
+          i === emptyIndex ? { ...stay, id: s.id } : s
+        );
+      }
+      return prev.length < MAX_STAYS ? [...prev, stay] : prev;
+    });
   };
 
   const handleLoad = (request: ComparisonRequest, weights: ScoreWeights) => {
@@ -244,9 +259,19 @@ export function CompareForm() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Add between {MIN_STAYS} and {MAX_STAYS} listings you&apos;re deciding
-          between.
+          Paste Airbnb links to import {MIN_STAYS}–{MAX_STAYS} listings, or edit
+          them by hand below.
         </p>
+
+        <ScrapeListingPanel
+          onAdd={addScrapedStay}
+          disabled={
+            stays.length >= MAX_STAYS && stays.every((s) => s.url.trim())
+          }
+          checkIn={tripContext?.checkIn ?? undefined}
+          checkOut={tripContext?.checkOut ?? undefined}
+          adults={guestsForGroup(tripContext?.travelGroup ?? null)}
+        />
 
         <div className="flex flex-col gap-4">
           {stays.map((stay, index) => (
