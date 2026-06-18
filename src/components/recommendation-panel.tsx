@@ -41,6 +41,52 @@ export function RecommendationPanel({
   result: ComparisonResult;
   airports?: Record<string, AirportIntelligence | null>;
 }) {
+  // When the data is too thin, refuse to recommend and say what's needed.
+  if (!result.reliable) {
+    const missing = [
+      ...new Set(result.scoredStays.flatMap((s) => s.missingFields)),
+    ];
+    return (
+      <Panel
+        title="Primary recommendation"
+        aside={<StatusTag status="neutral">Needs info</StatusTag>}
+        bodyClassName="flex flex-col gap-4"
+      >
+        <p className="text-sm leading-relaxed">
+          No reliable recommendation yet. The shortlist is missing the data
+          ScoutStay scores on, so any pick would just reflect platform
+          estimates.
+        </p>
+        <div>
+          <span className="eyebrow">Add to compare properly</span>
+          <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {(missing.length > 0
+              ? missing
+              : [
+                  "address",
+                  "price",
+                  "beds",
+                  "bathrooms",
+                  "rating",
+                  "review count",
+                  "facilities",
+                  "listing description",
+                ]
+            ).map((field) => (
+              <li key={field} className="flex items-start gap-2 text-sm">
+                <span className="mt-1.5 size-1.5 shrink-0 bg-caution" aria-hidden />
+                {field}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Paste an Airbnb link or add listing details to improve this briefing.
+        </p>
+      </Panel>
+    );
+  }
+
   const { bestOverall, biggestRisk, scoredStays } = result;
   const bestAirport = airports[bestOverall.stay.id];
   const bestConnected = bestAirportStay(scoredStays, airports);

@@ -17,9 +17,18 @@ import {
   type ComparisonResult,
   type ScoredStay,
   type ScoreWeights,
+  type Verdict,
 } from "@/lib/scoring";
 import { buildStayMatch } from "@/lib/stay-match-rag";
 import type { UserTripProfile } from "@/lib/types";
+
+const VERDICT_LABEL: Record<Verdict, string> = {
+  Book: "Recommended",
+  Maybe: "Consider",
+  Avoid: "Not advised",
+  NeedsInfo: "Needs more info",
+  Insufficient: "Insufficient data",
+};
 
 const CATEGORY_ORDER: CategoryId[] = [
   "safetyScore",
@@ -40,16 +49,30 @@ function platformLabel(value: string): string {
 function stayDetail(entry: ScoredStay): string[] {
   const lines: string[] = [];
   lines.push(
-    `### ${entry.rank}. ${entry.stay.name}, ${entry.overallScore}/100 (${entry.verdict})`
+    `### ${entry.rank}. ${entry.stay.name}, ${entry.overallScore}/100 (${VERDICT_LABEL[entry.verdict]})`
   );
   lines.push("");
+  const rate = Number(entry.stay.pricePerNight) || 0;
   lines.push(
-    `${platformLabel(entry.stay.platform)}, $${Number(entry.stay.pricePerNight) || 0}/night` +
+    `${platformLabel(entry.stay.platform)}, ${rate > 0 ? `$${rate}/night` : "price not set"}` +
       (entry.stay.address ? `, ${entry.stay.address}` : "")
   );
   lines.push("");
+  lines.push(
+    `_Data completeness ${entry.dataCompletenessScore}% (${entry.dataConfidence} confidence)._`
+  );
+  if (entry.estimated) {
+    lines.push(
+      "_The category scores below are platform estimates, not based on real listing data. Add the listing details to make them meaningful._"
+    );
+  }
+  if (entry.missingFields.length > 0) {
+    lines.push(`_Missing: ${entry.missingFields.join(", ")}._`);
+  }
+  lines.push("");
   for (const category of CATEGORY_ORDER) {
-    lines.push(`- ${CATEGORY_LABELS[category]}: ${entry.scores[category]}`);
+    const suffix = entry.estimated ? " (estimated)" : "";
+    lines.push(`- ${CATEGORY_LABELS[category]}: ${entry.scores[category]}${suffix}`);
   }
   if (entry.nearby) {
     const { counts, scores, radiusMeters } = entry.nearby;
@@ -153,7 +176,12 @@ export function buildMarkdownReport(
 
   lines.push("## Decision brief");
   lines.push("");
-  lines.push(`**${brief.headline}**, ${brief.winnerScore}/100 (${brief.verdict})`);
+  const gated = brief.verdict === "NeedsInfo" || brief.verdict === "Insufficient";
+  lines.push(
+    gated
+      ? `**${brief.headline}** (${VERDICT_LABEL[brief.verdict]})`
+      : `**${brief.headline}**, ${brief.winnerScore}/100 (${VERDICT_LABEL[brief.verdict]})`
+  );
   lines.push("");
   lines.push(brief.subheadline);
   lines.push("");
@@ -182,12 +210,14 @@ export function buildMarkdownReport(
 
   lines.push("## Ranked comparison");
   lines.push("");
-  lines.push("| # | Stay | Platform | Price/night | Score | Verdict |");
-  lines.push("| - | ---- | -------- | ----------- | ----- | ------- |");
+  lines.push("| # | Stay | Rate/night | Score | Data | Confidence | Status |");
+  lines.push("| - | ---- | ---------- | ----- | ---- | ---------- | ------ |");
   for (const entry of result.scoredStays) {
+    const rate = Number(entry.stay.pricePerNight) || 0;
     lines.push(
-      `| ${entry.rank} | ${entry.stay.name} | ${platformLabel(entry.stay.platform)} | ` +
-        `$${Number(entry.stay.pricePerNight) || 0} | ${entry.overallScore} | ${entry.verdict} |`
+      `| ${entry.rank} | ${entry.stay.name} | ${rate > 0 ? `$${rate}` : "—"} | ` +
+        `${entry.overallScore}${entry.estimated ? " est" : ""} | ${entry.dataCompletenessScore}% | ` +
+        `${entry.dataConfidence} | ${VERDICT_LABEL[entry.verdict]} |`
     );
   }
   lines.push("");
@@ -219,7 +249,9 @@ export function buildMarkdownReport(
     lines.push("");
   }
 
-  if (profile) {
+  // Only run the evidence match when there's enough real data to trust it;
+  // otherwise it would "win" on platform estimates.
+  if (profile && result.reliable) {
     lines.push(...evidenceMatchLines(result, profile));
   }
 

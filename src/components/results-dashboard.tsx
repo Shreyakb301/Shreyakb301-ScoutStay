@@ -18,7 +18,7 @@ import { RecommendationPanel } from "@/components/recommendation-panel";
 import { RiskAssessment } from "@/components/risk-assessment";
 import { SaveComparisonButton } from "@/components/save-comparison-button";
 import { ShareComparisonButton } from "@/components/share-comparison-button";
-import { TravelDecisionBrief } from "@/components/travel-decision-brief";
+import { AiDecisionBrief } from "@/components/ai-decision-brief";
 import { deriveProfileFromContext } from "@/components/user-trip-profile";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { useAirportIntelligence } from "@/hooks/use-airport-intelligence";
@@ -140,6 +140,18 @@ export function ResultsDashboard({
         </div>
       </header>
 
+      {/* Import guidance — shown until the data is good enough to trust. */}
+      {!result.reliable && (
+        <div className="border-l-4 border-signal bg-card p-4">
+          <p className="eyebrow text-foreground">Briefing is low-confidence</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Paste an Airbnb link or add listing details (address, price,
+            facilities, beds, rating) to improve this briefing. Until then,
+            scores are platform estimates, not a reliable recommendation.
+          </p>
+        </div>
+      )}
+
       {/* ─── 01 EXECUTIVE SUMMARY ───────────────────────────────── */}
       <BriefingSection
         code="01"
@@ -147,7 +159,7 @@ export function ResultsDashboard({
         meta={<VerdictBadge verdict={winner.verdict} />}
       >
         <div className="flex flex-col gap-6">
-          <TravelDecisionBrief result={result} weights={weights} />
+          <AiDecisionBrief result={result} weights={weights} profile={profile} />
           <RankingTable scoredStays={result.scoredStays} />
         </div>
       </BriefingSection>

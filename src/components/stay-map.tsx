@@ -170,8 +170,8 @@ export function StayMap({
     >
         {staysWithAddress.length === 0 ? (
           <EmptyState
-            title="No addresses yet"
-            body="Add an address to your stays in the form to see them placed on the map."
+            title="No stay locations available yet"
+            body="Paste an Airbnb link or add an address to a stay to plot it and pull location intelligence."
           />
         ) : loading ? (
           <div className="h-80 w-full animate-pulse bg-muted sm:h-96" />

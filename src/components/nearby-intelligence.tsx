@@ -52,7 +52,7 @@ function StayNearbyCard({
       {!nearby ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           {error ??
-            "No location set, add an address to pull neighborhood data."}
+            "Add a stay location to pull nearby restaurants, transit, grocery, and nightlife signals."}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">

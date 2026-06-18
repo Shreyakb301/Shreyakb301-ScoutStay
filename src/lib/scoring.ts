@@ -22,7 +22,12 @@ export type CategoryId =
  */
 export type CategoryScores = Record<CategoryId, number>;
 
-export type Verdict = "Book" | "Maybe" | "Avoid";
+export type Verdict =
+  | "Book"
+  | "Maybe"
+  | "Avoid"
+  | "NeedsInfo"
+  | "Insufficient";
 
 /**
  * High = built from real data (OpenStreetMap counts, airport distance,
@@ -58,6 +63,14 @@ export interface ScoredStay {
   nearby?: LocationIntelligence;
   /** Nearest-airport data, when available for this stay's location. */
   airport?: AirportIntelligence | null;
+  /** How complete this stay's data is, 0–100. */
+  dataCompletenessScore: number;
+  /** Overall trust in this stay's scores, derived from completeness. */
+  dataConfidence: ConfidenceLevel;
+  /** Human-readable list of fields still missing. */
+  missingFields: string[];
+  /** True when scores rest only on platform-type estimates (no real data). */
+  estimated: boolean;
 }
 
 export interface ComparisonResult {
@@ -68,6 +81,8 @@ export interface ComparisonResult {
   safest: ScoredStay;
   bestValue: ScoredStay;
   biggestRisk: ScoredStay;
+  /** True only when the top pick has enough data to trust a recommendation. */
+  reliable: boolean;
 }
 
 /**
@@ -146,6 +161,84 @@ export function getVerdict(overallScore: number): Verdict {
   if (overallScore >= 85) return "Book";
   if (overallScore >= 70) return "Maybe";
   return "Avoid";
+}
+
+/* ------------------------------------------------------------------ */
+/* Data completeness + confidence gating                               */
+/* ------------------------------------------------------------------ */
+
+/** Weighted fields that make up the data-completeness score (sum = 100). */
+const COMPLETENESS_FIELDS: {
+  label: string;
+  weight: number;
+  has: (
+    stay: StayListing,
+    nearby?: LocationIntelligence,
+    airport?: AirportIntelligence | null
+  ) => boolean;
+}[] = [
+  { label: "address", weight: 10, has: (s) => !!s.address?.trim() },
+  {
+    label: "coordinates",
+    weight: 10,
+    has: (s) => typeof s.latitude === "number" && typeof s.longitude === "number",
+  },
+  { label: "price", weight: 12, has: (s) => (Number(s.pricePerNight) || 0) > 0 },
+  { label: "beds", weight: 8, has: (s) => s.beds != null || s.bedrooms != null },
+  { label: "bathrooms", weight: 8, has: (s) => s.bathrooms != null },
+  { label: "rating", weight: 10, has: (s) => s.rating != null },
+  { label: "review count", weight: 7, has: (s) => s.reviewCount != null },
+  { label: "facilities", weight: 12, has: (s) => (s.facilities?.length ?? 0) > 0 },
+  {
+    label: "listing description",
+    weight: 8,
+    has: (s) => !!s.listingDescription?.trim(),
+  },
+  { label: "nearby intelligence", weight: 8, has: (_s, nearby) => !!nearby },
+  { label: "airport intelligence", weight: 7, has: (_s, _n, airport) => !!airport },
+];
+
+/** Below this, a stay has too little data to recommend at all. */
+export const INSUFFICIENT_DATA_THRESHOLD = 40;
+
+export interface DataCompleteness {
+  score: number;
+  confidence: ConfidenceLevel;
+  missingFields: string[];
+  /** Scores rest only on platform-type estimates — no real signals. */
+  estimated: boolean;
+}
+
+export function assessDataCompleteness(
+  stay: StayListing,
+  nearby?: LocationIntelligence,
+  airport?: AirportIntelligence | null
+): DataCompleteness {
+  let score = 0;
+  const missingFields: string[] = [];
+  for (const field of COMPLETENESS_FIELDS) {
+    if (field.has(stay, nearby, airport)) score += field.weight;
+    else missingFields.push(field.label);
+  }
+  const confidence: ConfidenceLevel =
+    score >= 70 ? "High" : score >= 45 ? "Medium" : "Low";
+
+  // No real signal feeds the category scores → they're platform guesses.
+  const estimated =
+    !nearby &&
+    stay.rating == null &&
+    (Number(stay.pricePerNight) || 0) <= 0 &&
+    (stay.facilities?.length ?? 0) === 0 &&
+    !stay.listingDescription?.trim();
+
+  return { score, confidence, missingFields, estimated };
+}
+
+/** Gate the raw score verdict behind data confidence. */
+function gatedVerdict(rawScore: number, data: DataCompleteness): Verdict {
+  if (data.score < INSUFFICIENT_DATA_THRESHOLD) return "Insufficient";
+  if (data.estimated || data.confidence === "Low") return "NeedsInfo";
+  return getVerdict(rawScore);
 }
 
 /* ------------------------------------------------------------------ */
@@ -679,17 +772,27 @@ export function scoreComparison(
       priciest,
     });
 
+    const completeness = assessDataCompleteness(stay, nearby, airport);
+    // Platform-only estimates must never read as a confident pick.
+    const finalScore = completeness.estimated
+      ? Math.min(overallScore, 60)
+      : overallScore;
+
     return {
       stay,
       rank: 0, // assigned after sorting
-      overallScore,
+      overallScore: finalScore,
       scores,
-      verdict: getVerdict(overallScore),
+      verdict: gatedVerdict(finalScore, completeness),
       pros,
       cons,
       explanations,
       nearby,
       airport,
+      dataCompletenessScore: completeness.score,
+      dataConfidence: completeness.confidence,
+      missingFields: completeness.missingFields,
+      estimated: completeness.estimated,
     } satisfies ScoredStay;
   });
 
@@ -701,12 +804,19 @@ export function scoreComparison(
   const byScore = (category: CategoryId) =>
     [...ranked].sort((a, b) => b.scores[category] - a.scores[category])[0];
 
+  const top = ranked[0];
+  const reliable =
+    top.dataCompletenessScore >= INSUFFICIENT_DATA_THRESHOLD &&
+    top.dataConfidence !== "Low" &&
+    !top.estimated;
+
   return {
     travelerType,
     scoredStays: ranked,
-    bestOverall: ranked[0],
+    bestOverall: top,
     safest: byScore("safetyScore"),
     bestValue: byScore("valueScore"),
     biggestRisk: ranked[ranked.length - 1],
+    reliable,
   };
 }

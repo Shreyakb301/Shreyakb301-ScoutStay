@@ -88,6 +88,9 @@ function headlineFor(winner: ScoredStay): string {
       return `Leaning toward ${winner.stay.name}`;
     case "Avoid":
       return `No standout, ${winner.stay.name} leads a weak field`;
+    case "NeedsInfo":
+    case "Insufficient":
+      return "ScoutStay needs more information";
   }
 }
 
@@ -251,7 +254,15 @@ function buildWarnings(result: ComparisonResult): string[] {
   const winner = result.bestOverall;
 
   for (const entry of result.scoredStays) {
-    if (entry.verdict === "Avoid") {
+    if (entry.verdict === "Insufficient") {
+      warnings.push(
+        `${entry.stay.name} has too little data (${entry.dataCompletenessScore}% complete) to score reliably.`
+      );
+    } else if (entry.estimated) {
+      warnings.push(
+        `${entry.stay.name}'s scores are platform estimates — add listing details to make them real.`
+      );
+    } else if (entry.verdict === "Avoid") {
       warnings.push(
         `${entry.stay.name} lands at ${entry.overallScore}/100, an Avoid for this trip.`
       );
@@ -280,11 +291,46 @@ function buildWarnings(result: ComparisonResult): string[] {
   return warnings.slice(0, 4);
 }
 
+/** A reliable recommendation needs real data; this is what's still missing. */
+function missingForBrief(result: ComparisonResult): string[] {
+  const union = new Set<string>();
+  for (const entry of result.scoredStays) {
+    for (const field of entry.missingFields) union.add(field);
+  }
+  return [...union];
+}
+
 export function buildDecisionBrief(
   result: ComparisonResult,
   weights: ScoreWeights
 ): DecisionBrief {
   const winner = result.bestOverall;
+
+  // When the data is too thin, never claim a winner or "wins on strong X".
+  if (!result.reliable) {
+    const missing = missingForBrief(result);
+    return {
+      headline: "ScoutStay needs more information",
+      subheadline:
+        "ScoutStay needs address, price, facilities, and listing details before making a reliable recommendation. Paste an Airbnb link or fill these in to improve the briefing.",
+      winnerName: winner.stay.name,
+      winnerScore: winner.overallScore,
+      verdict: winner.verdict,
+      sections: [
+        {
+          id: "preferences",
+          title: "What's missing",
+          body:
+            missing.length > 0
+              ? `Add ${joinProse(missing)} so scores reflect the real listing instead of platform estimates.`
+              : "Add listing details so scores reflect the real listing instead of platform estimates.",
+        },
+      ],
+      bestFor: [],
+      warnings: buildWarnings(result),
+    };
+  }
+
   const runnerUp =
     result.scoredStays.length > 1 ? result.scoredStays[1] : null;
 

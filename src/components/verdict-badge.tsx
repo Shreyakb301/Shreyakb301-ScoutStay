@@ -7,12 +7,16 @@ const VERDICT_LABEL: Record<Verdict, string> = {
   Book: "Recommended",
   Maybe: "Consider",
   Avoid: "Not advised",
+  NeedsInfo: "Needs more info",
+  Insufficient: "Insufficient data",
 };
 
 const VERDICT_TEXT: Record<Verdict, string> = {
   Book: "text-go",
   Maybe: "text-caution",
   Avoid: "text-nogo",
+  NeedsInfo: "text-muted-foreground",
+  Insufficient: "text-muted-foreground",
 };
 
 export function VerdictBadge({

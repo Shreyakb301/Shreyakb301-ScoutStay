@@ -117,11 +117,15 @@ export function FacilitiesComparison({ stays }: { stays: StayListing[] }) {
 
   if (!summary.anyFacilitiesEntered) {
     return (
-      <Panel>
+      <Panel title="No amenities recorded" bodyClassName="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
-          No facilities recorded yet. Add amenities to each stay in the
-          comparison form to see what every option includes and where the gaps
-          are.
+          Add Wi-Fi, beds, baths, pool, gym, workspace, washer/dryer, air
+          conditioning, parking, and pet friendliness to compare stays
+          properly.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Paste an Airbnb link to import amenities automatically, or tick them
+          on each stay.
         </p>
       </Panel>
     );
