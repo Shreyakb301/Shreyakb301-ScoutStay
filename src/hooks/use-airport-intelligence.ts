@@ -4,9 +4,39 @@ import { useEffect, useState } from "react";
 
 import {
   getAirportIntelligence,
+  withDrivingRoute,
   type AirportIntelligence,
 } from "@/lib/airport-intelligence";
 import type { LngLat } from "@/lib/geocode";
+
+/** Ask the server for a real Google driving route; null on any failure. */
+async function fetchDrivingRoute(
+  origin: LngLat,
+  airport: { latitude: number; longitude: number }
+): Promise<{ distanceKm: number; durationMinutes: number } | null> {
+  try {
+    const response = await fetch("/api/airport-route", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originLat: origin.lat,
+        originLng: origin.lng,
+        destLat: airport.latitude,
+        destLng: airport.longitude,
+      }),
+    });
+    const data = await response.json();
+    if (data && data.ok) {
+      return {
+        distanceKm: data.distanceKm,
+        durationMinutes: data.durationMinutes,
+      };
+    }
+  } catch {
+    // fall through to estimate
+  }
+  return null;
+}
 
 export interface AirportIntelligenceState {
   /**
@@ -54,10 +84,13 @@ export function useAirportIntelligence(
       await Promise.all(
         entries.map(async ([stayId, coords]) => {
           try {
-            nextAirports[stayId] = await getAirportIntelligence(
-              coords.lat,
-              coords.lng
-            );
+            let intel = await getAirportIntelligence(coords.lat, coords.lng);
+            // Upgrade the straight-line estimate to a real Google route.
+            if (intel) {
+              const route = await fetchDrivingRoute(coords, intel.airport);
+              if (route) intel = withDrivingRoute(intel, route);
+            }
+            nextAirports[stayId] = intel;
           } catch {
             nextErrors[stayId] = "Airport lookup failed";
           }

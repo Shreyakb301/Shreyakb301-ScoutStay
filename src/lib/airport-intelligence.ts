@@ -23,12 +23,14 @@ export interface Airport {
 
 export interface AirportIntelligence {
   airport: Airport;
-  /** Straight-line distance, km (1 decimal). */
+  /** Distance in km (1 decimal). Driving distance when source is "google". */
   distanceKm: number;
-  /** Rough drive estimate at an urban 40 km/h average — no routing API. */
+  /** Drive time in minutes. Real when source is "google", else an estimate. */
   driveMinutes: number;
   /** 0–100; higher = easier airport access. */
   accessibilityScore: number;
+  /** Where distance/time came from: a real Google route, or our estimate. */
+  source: "google" | "estimate";
 }
 
 export const AIRPORT_SEARCH_RADIUS_KM = 100;
@@ -185,5 +187,24 @@ export async function getAirportIntelligence(
     distanceKm,
     driveMinutes: estimateDriveMinutes(distanceKm),
     accessibilityScore: airportAccessibilityScore(distanceKm),
+    source: "estimate",
+  };
+}
+
+/**
+ * Merge a real Google driving route into an airport intelligence record,
+ * replacing the straight-line estimate with actual distance + duration.
+ */
+export function withDrivingRoute(
+  intel: AirportIntelligence,
+  route: { distanceKm: number; durationMinutes: number }
+): AirportIntelligence {
+  const distanceKm = Math.round(route.distanceKm * 10) / 10;
+  return {
+    ...intel,
+    distanceKm,
+    driveMinutes: Math.max(1, Math.round(route.durationMinutes)),
+    accessibilityScore: airportAccessibilityScore(distanceKm),
+    source: "google",
   };
 }
